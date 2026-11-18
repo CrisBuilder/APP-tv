@@ -3,10 +3,11 @@ import { useParams } from 'react-router-dom';
 import { ref, onValue } from 'firebase/database';
 import { db } from '../firebase';
 import { QRCodeSVG } from 'qrcode.react';
+import { playChimeSound } from '../services/audioService';
 
 export default function TV() {
-  const { uid } = useParams(); // Pega o ID do cliente da URL
-  
+  const { uid, displayId } = useParams();
+
   const [state, setState] = useState({
     background: { type: 'none' },
     qrCode: { visible: false, url: '' },
@@ -18,78 +19,78 @@ export default function TV() {
   const [time, setTime] = useState(new Date());
   const [showTicket, setShowTicket] = useState(false);
 
-  // Clock tick
+  // Relógio de precisão
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Listen to specific user's database path
+  // Escuta em tempo real do Firebase (Suporta rota de display específico ou global)
   useEffect(() => {
     if (!uid) return;
-    
-    const displayRef = ref(db, `users/${uid}/displayState`);
-    const unsubscribe = onValue(displayRef, (snapshot) => {
+
+    // Se temos displayId específico, escutamos esse display; senão, o nó geral
+    const targetPath = displayId
+      ? `users/${uid}/displays/${displayId}/state`
+      : `users/${uid}/displayState`;
+
+    const stateRef = ref(db, targetPath);
+    const unsubscribe = onValue(stateRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        setState((prevState) => ({ ...prevState, ...data }));
+        setState((prev) => ({ ...prev, ...data }));
       }
     });
 
     return () => unsubscribe();
-  }, [uid]);
+  }, [uid, displayId]);
 
-  // Ticket Pop-up & Audio Logic
+  // Chamada de Senha com Áudio Nativo Sintetizado (Offline)
   useEffect(() => {
     if (state.ticket?.timestamp && state.ticket?.visible) {
-      // Tocar som
-      const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-      audio.play().catch(e => console.log('Audio blocked by browser:', e));
-      
-      // Mostrar popup
+      playChimeSound();
       setShowTicket(true);
-      
-      // Ocultar após 15 segundos
-      const timer = setTimeout(() => setShowTicket(false), 15000);
+      const timer = setTimeout(() => setShowTicket(false), 12000);
       return () => clearTimeout(timer);
     }
-  }, [state.ticket?.timestamp]);
+  }, [state.ticket?.timestamp, state.ticket?.visible]);
 
   if (!uid) {
-    return <div style={{ color: 'white', padding: '2rem' }}>ID da TV não fornecido na URL.</div>;
+    return (
+      <div style={{ color: '#FFFFFF', padding: '2rem', textAlign: 'center', background: '#000000', height: '100vh' }}>
+        Identificação da TV não informada na URL.
+      </div>
+    );
   }
 
   return (
     <div className="tv-container">
-      
-      {/* BACKGROUND LAYER */}
+      {/* Camada de Mídia de Fundo */}
       <div className="tv-background">
         {state.background?.type === 'image' && (
-          <img src={state.background.url} alt="Background" className="tv-media" />
+          <img src={state.background.url} alt="Fundo DisplayFlow" className="tv-media" />
         )}
-        
+
         {state.background?.type === 'youtube' && (
           <iframe
             className="tv-iframe"
             src={`https://www.youtube.com/embed/${state.background.videoId}?autoplay=1&controls=0&modestbranding=1&loop=1&playlist=${state.background.videoId}`}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
-          ></iframe>
+            title="DisplayFlow YouTube Background"
+          />
         )}
       </div>
 
-      {/* CLOCK WIDGET */}
+      {/* Relógio de Canto */}
       <div className="tv-clock-widget">
         {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
       </div>
 
-      {/* OVERLAYS LAYER */}
+      {/* Camada de Overlays Cinematográficos */}
       <div className="tv-overlay-layer">
-        
-        {/* Top/Middle Area - Could be Product */}
         <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', height: '100%' }}>
-          
-          {/* Product Widget */}
+          {/* Card de Produto / Oferta */}
           {state.product?.visible && (
             <div className="tv-product-widget">
               <h1 className="tv-product-name">{state.product.name}</h1>
@@ -98,32 +99,32 @@ export default function TV() {
             </div>
           )}
 
-          {/* Spacer if no product */}
-          {!state.product?.visible && <div></div>}
+          {!state.product?.visible && <div />}
 
-          {/* QR Code Widget */}
+          {/* Widget de QR Code */}
           {state.qrCode?.visible && state.qrCode.url && (
-            <div className="tv-qr-widget" style={{ marginTop: 'auto', marginBottom: state.announcement?.visible ? '4rem' : '0' }}>
-              <QRCodeSVG value={state.qrCode.url} size={150} bgColor={"#ffffff"} fgColor={"#000000"} />
-              <span>Acesse Aqui</span>
+            <div className="tv-qr-widget" style={{ marginTop: 'auto', marginBottom: state.announcement?.visible ? '4.5rem' : '0' }}>
+              <div style={{ background: '#FFFFFF', padding: '8px', borderRadius: '12px' }}>
+                <QRCodeSVG value={state.qrCode.url} size={130} bgColor="#FFFFFF" fgColor="#000000" />
+              </div>
+              <span>Aponte a Câmera</span>
             </div>
           )}
         </div>
-
       </div>
 
-      {/* TICKET / SENHA OVERLAY (CENTERED) */}
+      {/* Modal de Senha Chamada com Estilo DisplayFlow */}
       {showTicket && state.ticket && (
         <div className="tv-ticket-modal">
           <div className="tv-ticket-content">
-            <h2 style={{ fontSize: '2rem', color: 'var(--accent-color)', marginBottom: '1rem', textTransform: 'uppercase' }}>
+            <h2 style={{ fontSize: '2.2rem', color: '#7F93F0', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '2px' }}>
               Senha Chamada
             </h2>
-            <div style={{ fontSize: '7rem', fontWeight: '900', lineHeight: '1', marginBottom: '1rem' }}>
+            <div style={{ fontSize: 'clamp(5rem, 12vw, 9rem)', fontWeight: '900', lineHeight: '1', color: '#FFFFFF', marginBottom: '0.75rem' }}>
               {state.ticket.number}
             </div>
             {state.ticket.desk && (
-              <div style={{ fontSize: '3rem', fontWeight: '600', color: '#cbd5e1' }}>
+              <div style={{ fontSize: 'clamp(1.8rem, 4vw, 3rem)', fontWeight: '600', color: '#EFAF4F' }}>
                 {state.ticket.desk}
               </div>
             )}
@@ -131,7 +132,7 @@ export default function TV() {
         </div>
       )}
 
-      {/* BANNER LAYER (Bottom) */}
+      {/* Letreiro Rotativo Noticiário */}
       {state.announcement?.visible && state.announcement.text && (
         <div className="tv-banner-container">
           <div className="tv-banner-text">
@@ -139,7 +140,6 @@ export default function TV() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

@@ -1,10 +1,12 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
-import { onAuthStateChanged } from 'firebase/auth'
-import { auth, isFirebaseConfigured } from './firebase'
-import Admin from './pages/Admin'
-import TV from './pages/TV'
-import Login from './pages/Login'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth, isFirebaseConfigured } from './firebase';
+import Admin from './pages/Admin';
+import TV from './pages/TV';
+import Login from './pages/Login';
+import PairingView from './pages/PairingView';
+import { MonitorPlay } from 'lucide-react';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -30,62 +32,67 @@ function App() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #090d16 0%, #0f172a 100%)',
-        color: '#f8fafc',
+        background: 'linear-gradient(135deg, #0E1330 0%, #161C42 100%)',
+        color: '#FFFFFF',
         fontFamily: 'Inter, system-ui, sans-serif',
         padding: '1.5rem'
       }}>
-        <div style={{
-          maxWidth: '580px',
+        <div className="df-card" style={{
+          maxWidth: '560px',
           width: '100%',
-          background: 'rgba(30, 41, 59, 0.75)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          backdropFilter: 'blur(16px)',
-          borderRadius: '20px',
           padding: '2.5rem',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
-          textAlign: 'center'
+          textAlign: 'center',
+          borderRadius: '24px',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          background: 'rgba(22, 28, 66, 0.85)',
+          backdropFilter: 'blur(16px)',
+          boxShadow: '0 25px 50px rgba(0, 0, 0, 0.6)'
         }}>
-          <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>📺</div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: '800', marginBottom: '0.5rem', color: '#fff' }}>
-            Signage.Pro
+          <div style={{
+            display: 'inline-flex',
+            padding: '16px',
+            background: 'rgba(127, 147, 240, 0.15)',
+            color: '#7F93F0',
+            borderRadius: '20px',
+            marginBottom: '1rem'
+          }}>
+            <MonitorPlay size={44} />
+          </div>
+          <h1 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '0.5rem', color: '#FFFFFF' }}>
+            Display<span style={{ color: '#7F93F0' }}>Flow</span>
           </h1>
           <div style={{
             display: 'inline-block',
-            background: 'rgba(234, 179, 8, 0.15)',
-            border: '1px solid rgba(234, 179, 8, 0.35)',
-            color: '#facc15',
-            padding: '0.4rem 1rem',
+            background: 'var(--warn-soft)',
+            border: '1px solid var(--warn)',
+            color: 'var(--warn-text)',
+            padding: '0.35rem 1rem',
             borderRadius: '999px',
-            fontSize: '0.85rem',
-            fontWeight: '600',
-            marginBottom: '1.5rem'
+            fontSize: '0.82rem',
+            fontWeight: '700',
+            marginBottom: '1.25rem'
           }}>
-            ⚙️ Configuração do Firebase Pendente
+            ⚙️ Conexão do Firebase Pendente
           </div>
-          <p style={{ color: '#94a3b8', fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '1.5rem' }}>
-            O sistema está pronto para uso e limpo para o seu projeto. Conecte seu banco de dados seguindo 3 passos simples:
+          <p style={{ color: '#CBD5E1', fontSize: '0.92rem', lineHeight: '1.6', marginBottom: '1.5rem' }}>
+            O DisplayFlow está pronto para uso e limpo. Conecte seu Realtime Database inserindo suas credenciais em:
           </p>
 
           <div style={{
-            background: 'rgba(15, 23, 42, 0.85)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
+            background: 'rgba(14, 19, 48, 0.9)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
             borderRadius: '12px',
             padding: '1.25rem',
             textAlign: 'left',
             marginBottom: '1.5rem',
-            fontSize: '0.9rem',
+            fontSize: '0.88rem',
             lineHeight: '1.8',
-            color: '#cbd5e1'
+            color: '#E4EAFA'
           }}>
-            <div><strong>1.</strong> Abra o arquivo <code style={{ color: '#38bdf8', background: 'rgba(56,189,248,0.1)', padding: '2px 6px', borderRadius: '4px' }}>src/firebase.js</code></div>
-            <div><strong>2.</strong> Cole o seu bloco <code style={{ color: '#38bdf8', background: 'rgba(56,189,248,0.1)', padding: '2px 6px', borderRadius: '4px' }}>firebaseConfig</code> bruto gerado no Firebase</div>
-            <div><strong>3.</strong> Cole sua chave do <code style={{ color: '#38bdf8', background: 'rgba(56,189,248,0.1)', padding: '2px 6px', borderRadius: '4px' }}>ImgBB</code> em <code style={{ color: '#38bdf8', background: 'rgba(56,189,248,0.1)', padding: '2px 6px', borderRadius: '4px' }}>IMGBB_API_KEY</code></div>
-            <div><strong>4.</strong> Salve o arquivo e este painel recarregará automaticamente! 🚀</div>
-          </div>
-
-          <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-            Consulte o arquivo <strong>COMO-CONFIGURAR.md</strong> ou <strong>README.md</strong> na raiz para o guia ilustrado passo a passo.
+            <div><strong>1.</strong> Abra o arquivo <code style={{ color: '#7F93F0' }}>src/firebase.js</code></div>
+            <div><strong>2.</strong> Cole o bloco <code style={{ color: '#7F93F0' }}>firebaseConfig</code> do console do Firebase</div>
+            <div><strong>3.</strong> Opcional: Cole sua chave do <code style={{ color: '#7F93F0' }}>ImgBB</code> em <code style={{ color: '#7F93F0' }}>IMGBB_API_KEY</code></div>
+            <div><strong>4.</strong> Salve e a aplicação recarregará automaticamente! 🚀</div>
           </div>
         </div>
       </div>
@@ -93,7 +100,11 @@ function App() {
   }
 
   if (loading) {
-    return <div style={{ color: 'white', padding: '2rem', textAlign: 'center' }}>Carregando...</div>;
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', color: 'var(--pri)', fontWeight: '600' }}>
+        Carregando DisplayFlow...
+      </div>
+    );
   }
 
   return (
@@ -102,11 +113,18 @@ function App() {
         <Route path="/" element={<Navigate to={user ? "/admin" : "/login"} replace />} />
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/admin" replace />} />
         <Route path="/admin" element={user ? <Admin user={user} /> : <Navigate to="/login" replace />} />
-        {/* Agora a TV recebe o ID do usuário para saber qual painel escutar */}
+        
+        {/* Rota da TV: Canal Geral / Principal */}
         <Route path="/tv/:uid" element={<TV />} />
+
+        {/* Rota da TV: Display Específico */}
+        <Route path="/tv/:uid/:displayId" element={<TV />} />
+
+        {/* Rota de Emparelhamento por Código da TV */}
+        <Route path="/pair" element={<PairingView />} />
       </Routes>
     </BrowserRouter>
-  )
+  );
 }
 
-export default App
+export default App;

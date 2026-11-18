@@ -2,17 +2,21 @@ import { useState } from 'react';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase';
 import { useNavigate } from 'react-router-dom';
+import { MonitorPlay, ShieldCheck, ArrowRight } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isRegister, setIsRegister] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMsg('');
+
     try {
       if (isRegister) {
         await createUserWithEmailAndPassword(auth, email, password);
@@ -21,49 +25,138 @@ export default function Login() {
       }
       navigate('/admin');
     } catch (error) {
-      alert("Erro: " + error.message);
+      let msg = 'Ocorreu um erro ao processar seu acesso.';
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+        msg = 'Email ou senha incorretos.';
+      } else if (error.code === 'auth/email-already-in-use') {
+        msg = 'Este email já está cadastrado no DisplayFlow.';
+      } else if (error.code === 'auth/weak-password') {
+        msg = 'A senha deve conter pelo menos 6 caracteres.';
+      } else if (error.code === 'auth/invalid-email') {
+        msg = 'Formato de email inválido.';
+      }
+      setErrorMsg(msg);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="app-container" style={{ justifyContent: 'center', alignItems: 'center' }}>
-      <div className="glass-panel" style={{ padding: '3rem', width: '100%', maxWidth: '400px' }}>
-        <h2 style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          {isRegister ? 'Criar Nova Conta' : 'Login - Signage.Pro'}
-        </h2>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '1.5rem',
+      background: 'linear-gradient(180deg, #F8F9FD 0%, #EAEFFC 100%)'
+    }}>
+      <div className="df-card" style={{
+        maxWidth: '440px',
+        width: '100%',
+        padding: '2.5rem 2rem',
+        boxShadow: 'var(--shadow-pop)',
+        borderRadius: '20px'
+      }}>
+        {/* Header da Marca DisplayFlow */}
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '56px',
+            height: '56px',
+            borderRadius: '16px',
+            background: 'var(--tint)',
+            color: 'var(--pri)',
+            marginBottom: '0.75rem'
+          }}>
+            <MonitorPlay size={32} />
+          </div>
+          <h1 style={{ fontSize: '1.6rem', fontWeight: '800', color: 'var(--ink)' }}>
+            Display<span style={{ color: 'var(--pri)' }}>Flow</span>
+          </h1>
+          <p style={{ fontSize: '0.9rem', color: 'var(--mute)', marginTop: '0.25rem' }}>
+            Gestão Estratégica de Telas & Digital Signage
+          </p>
+        </div>
+
+        {errorMsg && (
+          <div style={{
+            background: 'var(--bad-soft)',
+            border: '1px solid rgba(230, 91, 100, 0.25)',
+            color: 'var(--bad-text)',
+            padding: '0.75rem 1rem',
+            borderRadius: 'var(--radius-btn)',
+            fontSize: '0.85rem',
+            marginBottom: '1.25rem',
+            fontWeight: '500'
+          }}>
+            {errorMsg}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Email</label>
-            <input 
-              type="email" 
-              value={email} 
-              onChange={e => setEmail(e.target.value)} 
-              required 
-              style={{ padding: '0.8rem', background: 'rgba(0,0,0,0.2)' }}
+          <div className="df-field">
+            <label htmlFor="login-email">Email corporativo ou pessoal</label>
+            <input
+              id="login-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="exemplo@empresa.com"
+              required
+              autoComplete="email"
             />
           </div>
-          <div className="form-group">
-            <label>Senha</label>
-            <input 
-              type="password" 
-              value={password} 
-              onChange={e => setPassword(e.target.value)} 
-              required 
-              style={{ padding: '0.8rem', background: 'rgba(0,0,0,0.2)' }}
+
+          <div className="df-field">
+            <label htmlFor="login-password">Senha de acesso</label>
+            <input
+              id="login-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              minLength={6}
+              autoComplete={isRegister ? "new-password" : "current-password"}
             />
           </div>
-          <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? 'Aguarde...' : (isRegister ? 'Registrar' : 'Entrar')}
+
+          <button
+            type="submit"
+            className="df-btn df-btn-pri"
+            disabled={loading}
+            style={{ width: '100%', marginTop: '1rem', fontSize: '0.95rem' }}
+          >
+            {loading ? 'Validando...' : (isRegister ? 'Criar Minha Conta Grátis' : 'Entrar no DisplayFlow')}
+            <ArrowRight size={18} />
           </button>
         </form>
-        <p 
-          style={{ textAlign: 'center', marginTop: '1.5rem', cursor: 'pointer', color: 'var(--accent-color)', fontSize: '0.9rem' }} 
-          onClick={() => setIsRegister(!isRegister)}
-        >
-          {isRegister ? 'Já tenho conta. Fazer Login.' : 'Não tem conta? Registre-se agora.'}
-        </p>
+
+        <div style={{ marginTop: '1.75rem', textAlign: 'center', borderTop: '1px solid var(--line)', paddingTop: '1.25rem' }}>
+          <button
+            type="button"
+            onClick={() => { setIsRegister(!isRegister); setErrorMsg(''); }}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--pri)',
+              fontWeight: '600',
+              fontSize: '0.88rem',
+              cursor: 'pointer'
+            }}
+          >
+            {isRegister
+              ? 'Já possui uma conta? Faça login aqui'
+              : 'Novo no DisplayFlow? Crie sua conta de demonstração'}
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '1.5rem', color: 'var(--mute)', fontSize: '0.78rem' }}>
+          <ShieldCheck size={14} color="var(--ok)" />
+          Conexão Segura & Controle em Tempo Real
+        </div>
       </div>
     </div>
   );

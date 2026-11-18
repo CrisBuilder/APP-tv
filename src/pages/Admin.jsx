@@ -11,6 +11,7 @@ import LivePreviewModal from '../components/LivePreviewModal';
 
 import DisplaysTab from '../components/tabs/DisplaysTab';
 import MediaTab from '../components/tabs/MediaTab';
+import ScheduleTab from '../components/tabs/ScheduleTab';
 import AnnouncementTab from '../components/tabs/AnnouncementTab';
 import ProductTab from '../components/tabs/ProductTab';
 import QrTab from '../components/tabs/QrTab';
@@ -37,7 +38,6 @@ export default function Admin({ user }) {
     // 1. Ouve a lista de displays em tempo real
     const unsubDisplays = subscribeUserDisplays(user.uid, (list) => {
       setDisplays(list);
-      // Se não houver telas, cria automaticamente a TV Principal padrão para o usuário
       if (list.length === 0) {
         saveDisplay(user.uid, { name: 'TV Principal', location: 'Recepção' });
       }
@@ -109,6 +109,15 @@ export default function Admin({ user }) {
               displays={displays}
               selectedDisplayId={selectedDisplayId}
               imgbbKey={imgbbKey}
+            />
+          )}
+
+          {activeTab === 'schedule' && (
+            <ScheduleTab
+              user={user}
+              displays={displays}
+              selectedDisplayId={selectedDisplayId}
+              initialSchedule={currentState.schedule || {}}
             />
           )}
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { ref, onValue } from 'firebase/database';
 import { db } from '../firebase';
@@ -7,29 +7,50 @@ import { playChimeSound } from '../services/audioService';
 
 export default function TV() {
   const { uid, displayId } = useParams();
+  const cacheKey = `df_tv_cache_${uid}_${displayId || 'default'}`;
 
-  const [state, setState] = useState({
-    background: { type: 'none' },
-    qrCode: { visible: false, url: '' },
-    announcement: { visible: false, text: '' },
-    product: { visible: false, name: '', desc: '', price: '' },
-    ticket: { visible: false, number: '', desk: '', timestamp: 0 }
+  // Recupera estado inicial salvo em cache local para inicialização instantânea offline
+  const [state, setState] = useState(() => {
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      return cached ? JSON.parse(cached) : {
+        background: { type: 'none' },
+        qrCode: { visible: false, url: '' },
+        announcement: { visible: false, text: '' },
+        product: { visible: false, name: '', desc: '', price: '' },
+        ticket: { visible: false, number: '', desk: '', timestamp: 0 },
+        schedule: { enabled: false, shifts: [] }
+      };
+    } catch {
+      return { background: { type: 'none' } };
+    }
   });
 
   const [time, setTime] = useState(new Date());
   const [showTicket, setShowTicket] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Relógio de precisão
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Relógio de precisão a cada segundo
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Escuta em tempo real do Firebase (Suporta rota de display específico ou global)
+  // Escuta Firebase em tempo real e atualiza cache offline
   useEffect(() => {
     if (!uid) return;
 
-    // Se temos displayId específico, escutamos esse display; senão, o nó geral
     const targetPath = displayId
       ? `users/${uid}/displays/${displayId}/state`
       : `users/${uid}/displayState`;
@@ -38,12 +59,18 @@ export default function TV() {
     const unsubscribe = onValue(stateRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        setState((prev) => ({ ...prev, ...data }));
+        setState((prev) => {
+          const merged = { ...prev, ...data };
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
       }
     });
 
     return () => unsubscribe();
-  }, [uid, displayId]);
+  }, [uid, displayId, cacheKey]);
 
   // Chamada de Senha com Áudio Nativo Sintetizado (Offline)
   useEffect(() => {
@@ -55,42 +82,65 @@ export default function TV() {
     }
   }, [state.ticket?.timestamp, state.ticket?.visible]);
 
+  // Avaliação do Agendamento por Horário / Turnos
+  const activeBackground = useMemo(() => {
+    if (state.schedule?.enabled && Array.isArray(state.schedule.shifts) && state.schedule.shifts.length > 0) {
+      const currentHours = String(time.getHours()).padStart(2, '0');
+      const currentMinutes = String(time.getMinutes()).padStart(2, '0');
+      const currentTimeStr = `${currentHours}:${currentMinutes}`;
+
+      const activeShift = state.schedule.shifts.find((s) => {
+        if (!s.start || !s.end || !s.mediaUrl) return false;
+        if (s.start <= s.end) {
+          return currentTimeStr >= s.start && currentTimeStr < s.end;
+        }
+        // Turno que vira a noite (ex: 22:00 até 04:00)
+        return currentTimeStr >= s.start || currentTimeStr < s.end;
+      });
+
+      if (activeShift) {
+        return { type: 'image', url: activeShift.mediaUrl, shiftName: activeShift.name };
+      }
+    }
+    return state.background || { type: 'none' };
+  }, [state.schedule, state.background, time]);
+
   if (!uid) {
-    return (
-      <div style={{ color: '#FFFFFF', padding: '2rem', textAlign: 'center', background: '#000000', height: '100vh' }}>
-        Identificação da TV não informada na URL.
-      </div>
-    );
+    return <div style={{ color: '#fff', padding: '2rem', textAlign: 'center', background: '#000', height: '100vh' }}>ID da TV ausente.</div>;
   }
 
   return (
     <div className="tv-container">
-      {/* Camada de Mídia de Fundo */}
+      {/* Camada de Fundo (Normal ou Turno Ativo) */}
       <div className="tv-background">
-        {state.background?.type === 'image' && (
-          <img src={state.background.url} alt="Fundo DisplayFlow" className="tv-media" />
+        {activeBackground?.type === 'image' && activeBackground.url && (
+          <img src={activeBackground.url} alt="Fundo DisplayFlow" className="tv-media" />
         )}
 
-        {state.background?.type === 'youtube' && (
+        {activeBackground?.type === 'youtube' && (
           <iframe
             className="tv-iframe"
-            src={`https://www.youtube.com/embed/${state.background.videoId}?autoplay=1&controls=0&modestbranding=1&loop=1&playlist=${state.background.videoId}`}
+            src={`https://www.youtube.com/embed/${activeBackground.videoId}?autoplay=1&controls=0&modestbranding=1&loop=1&playlist=${activeBackground.videoId}`}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
-            title="DisplayFlow YouTube Background"
+            title="DisplayFlow YouTube"
           />
         )}
       </div>
 
-      {/* Relógio de Canto */}
+      {/* Relógio & Indicador de Conexão */}
       <div className="tv-clock-widget">
+        {!isOnline && (
+          <span style={{ fontSize: '0.65rem', background: '#E65B64', padding: '2px 8px', borderRadius: '10px', marginRight: '8px', verticalAlign: 'middle' }}>
+            MODO OFFLINE
+          </span>
+        )}
         {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
       </div>
 
-      {/* Camada de Overlays Cinematográficos */}
+      {/* Overlays Cinematográficos */}
       <div className="tv-overlay-layer">
         <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', height: '100%' }}>
-          {/* Card de Produto / Oferta */}
           {state.product?.visible && (
             <div className="tv-product-widget">
               <h1 className="tv-product-name">{state.product.name}</h1>
@@ -101,7 +151,6 @@ export default function TV() {
 
           {!state.product?.visible && <div />}
 
-          {/* Widget de QR Code */}
           {state.qrCode?.visible && state.qrCode.url && (
             <div className="tv-qr-widget" style={{ marginTop: 'auto', marginBottom: state.announcement?.visible ? '4.5rem' : '0' }}>
               <div style={{ background: '#FFFFFF', padding: '8px', borderRadius: '12px' }}>
@@ -113,7 +162,7 @@ export default function TV() {
         </div>
       </div>
 
-      {/* Modal de Senha Chamada com Estilo DisplayFlow */}
+      {/* Chamada de Senha */}
       {showTicket && state.ticket && (
         <div className="tv-ticket-modal">
           <div className="tv-ticket-content">
@@ -132,7 +181,7 @@ export default function TV() {
         </div>
       )}
 
-      {/* Letreiro Rotativo Noticiário */}
+      {/* Letreiro */}
       {state.announcement?.visible && state.announcement.text && (
         <div className="tv-banner-container">
           <div className="tv-banner-text">

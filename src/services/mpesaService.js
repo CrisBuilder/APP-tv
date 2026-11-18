@@ -29,38 +29,28 @@ export const PLANS = [
   }
 ];
 
-/**
- * Valida se é um número válido da Vodacom Moçambique (84 ou 85)
- */
 export function validateMpesaNumber(number) {
   if (!number) return false;
-  // Remove caracteres especiais
   const cleaned = number.replace(/\D/g, '');
-  // Aceita formatos: 84XXXXXXX, 85XXXXXXX, 25884XXXXXXX, 25885XXXXXXX
   const vodacomRegex = /^(?:258)?(84|85)\d{7}$/;
   return vodacomRegex.test(cleaned);
 }
 
-/**
- * Formata o número para o padrão internacional MSISDN
- */
 export function formatMsisdn(number) {
   const cleaned = number.replace(/\D/g, '');
   if (cleaned.startsWith('258')) return cleaned;
   return `258${cleaned}`;
 }
 
-/**
- * Gera código de referência única DisplayFlow
- */
 export function generateTransactionReference() {
   const rand = Math.floor(100000 + Math.random() * 900000);
   return `DF-${rand}`;
 }
 
 /**
- * Processa a cobrança C2B M-Pesa
- * Suporta modo Sandbox/Demonstração interativa e modo Real
+ * Inicia pagamento C2B
+ * Se isSandbox for true: executa no frontend com USSD interativo
+ * Se isSandbox for false: chama o backend DisplayFlow M-Pesa Gateway
  */
 export async function initiateMpesaPayment({ userId, planId, phoneNumber, isSandbox = true }) {
   const plan = PLANS.find((p) => p.id === planId);
@@ -74,7 +64,6 @@ export async function initiateMpesaPayment({ userId, planId, phoneNumber, isSand
   const reference = generateTransactionReference();
 
   if (isSandbox) {
-    // Retorna os dados para a simulação do push USSD no telemóvel do cliente
     return {
       status: 'PENDING_USER_PIN',
       reference,
@@ -85,19 +74,38 @@ export async function initiateMpesaPayment({ userId, planId, phoneNumber, isSand
     };
   }
 
-  // --- Modo Real (Quando as credenciais forem ativadas no backend/env) ---
-  // A integração C2B na Vodacom Moçambique é feita enviando POST para a porta 18352
-  // com Authorization: Bearer RSA(ApiKey)
-  throw new Error('Ambiente de produção aguardando credenciais oficiais da Vodacom no portal developer.mpesa.vm.co.mz');
+  // Chamada ao Backend Real quando as credenciais estiverem ativas
+  const backendUrl = import.meta.env.VITE_MPESA_BACKEND_URL || 'http://localhost:3001';
+  const response = await fetch(`${backendUrl}/api/mpesa/c2b`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      msisdn,
+      amount: plan.priceMtn,
+      reference,
+      thirdPartyReference: reference
+    })
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Erro ao processar C2B na Vodacom');
+  }
+
+  return {
+    status: 'REAL_SENT',
+    data,
+    reference,
+    msisdn,
+    amountMtn: plan.priceMtn,
+    planName: plan.name
+  };
 }
 
-/**
- * Conclui a transação e atualiza a assinatura no banco de dados
- */
 export async function confirmMpesaSubscription(userId, { planId, reference, msisdn, amountMtn }) {
   const plan = PLANS.find((p) => p.id === planId) || PLANS[0];
   const subRef = ref(db, `users/${userId}/subscription`);
-  
+
   const payload = {
     planId: plan.id,
     planName: plan.name,
@@ -107,12 +115,11 @@ export async function confirmMpesaSubscription(userId, { planId, reference, msis
     msisdn,
     reference,
     updatedAt: Date.now(),
-    expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 dias
+    expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000
   };
 
   await update(subRef, payload);
 
-  // Registra fatura no histórico
   const invoiceRef = ref(db, `users/${userId}/invoices/${reference}`);
   await update(invoiceRef, {
     reference,
@@ -127,9 +134,6 @@ export async function confirmMpesaSubscription(userId, { planId, reference, msis
   return payload;
 }
 
-/**
- * Consulta a assinatura atual do usuário
- */
 export async function getUserSubscription(userId) {
   if (!userId) return null;
   const subRef = ref(db, `users/${userId}/subscription`);

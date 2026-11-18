@@ -1,4 +1,4 @@
-import { MonitorPlay, MessageSquare, QrCode, Tag, Bell, Settings, CreditCard, Tv, LogOut } from 'lucide-react';
+import { MonitorPlay, MessageSquare, QrCode, Tag, Bell, Settings, CreditCard, Tv, CalendarClock, LogOut } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 
@@ -6,6 +6,7 @@ export default function Sidebar({ activeTab, setActiveTab, user, profile, displa
   const menuItems = [
     { id: 'displays', label: 'Minhas Telas', icon: Tv, badge: displaysCount },
     { id: 'media', label: 'Mídia de Fundo', icon: MonitorPlay },
+    { id: 'schedule', label: 'Horários & Turnos', icon: CalendarClock },
     { id: 'announce', label: 'Letreiro Rotativo', icon: MessageSquare },
     { id: 'product', label: 'Produto & Oferta', icon: Tag },
     { id: 'qr', label: 'QR Code Dinâmico', icon: QrCode },

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ref, onValue } from 'firebase/database';
 import { db } from '../firebase';
 import { QRCodeSVG } from 'qrcode.react';
@@ -9,6 +9,7 @@ export default function LivePreviewModal({ isOpen, onClose, user, displays = [],
   const [state, setState] = useState(null);
   const [time, setTime] = useState(new Date());
   const [carouselIndex, setCarouselIndex] = useState(0);
+  const [videoIndex, setVideoIndex] = useState(0);
 
   useEffect(() => {
     setActiveDisplayId(initialDisplayId);
@@ -44,6 +45,16 @@ export default function LivePreviewModal({ isOpen, onClose, user, displays = [],
       }, durationMs);
       return () => clearInterval(interval);
     }
+  }, [state?.background]);
+
+  const youtubePlaylistUrl = useMemo(() => {
+    const bg = state?.background;
+    if (bg?.type === 'youtube_playlist' && Array.isArray(bg.videoIds) && bg.videoIds.length > 0) {
+      const firstId = bg.videoIds[0];
+      const playlistParam = bg.videoIds.join(',');
+      return `https://www.youtube.com/embed/${firstId}?autoplay=1&controls=0&mute=1&loop=1&playlist=${playlistParam}`;
+    }
+    return null;
   }, [state?.background]);
 
   if (!isOpen) return null;
@@ -136,6 +147,22 @@ export default function LivePreviewModal({ isOpen, onClose, user, displays = [],
             <img src={bg.url} alt="Fundo Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           )}
 
+          {bg?.type === 'video' && bg.url && (
+            <video src={bg.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} autoPlay muted loop playsInline />
+          )}
+
+          {bg?.type === 'video_playlist' && bg.items?.length > 0 && (
+            <video
+              key={bg.items[videoIndex % bg.items.length]?.url}
+              src={bg.items[videoIndex % bg.items.length]?.url}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              autoPlay
+              muted
+              playsInline
+              onEnded={() => setVideoIndex((prev) => (prev + 1) % bg.items.length)}
+            />
+          )}
+
           {bg?.type === 'youtube' && (
             <iframe
               style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }}
@@ -144,15 +171,23 @@ export default function LivePreviewModal({ isOpen, onClose, user, displays = [],
             />
           )}
 
+          {bg?.type === 'youtube_playlist' && youtubePlaylistUrl && (
+            <iframe
+              style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }}
+              src={youtubePlaylistUrl}
+              title="YouTube Playlist Preview"
+            />
+          )}
+
           {(!bg || bg.type === 'none') && (
             <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #090D1A 0%, #161C42 100%)', color: '#64748B' }}>
               <Tv size={48} style={{ opacity: 0.4, marginBottom: '0.5rem' }} />
-              <p style={{ fontSize: '0.9rem' }}>Nenhuma imagem ou vídeo ativo no fundo</p>
+              <p style={{ fontSize: '0.9rem' }}>Nenhuma mídia ativa no fundo</p>
             </div>
           )}
         </div>
 
-        {/* Relógio do Canto */}
+        {/* Relógio */}
         <div style={{ position: 'absolute', top: '1rem', right: '1.25rem', background: 'rgba(14, 19, 48, 0.8)', padding: '4px 12px', borderRadius: '999px', fontSize: '0.85rem', fontWeight: '700', zIndex: 10, border: '1px solid rgba(255,255,255,0.15)' }}>
           {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </div>
@@ -179,7 +214,7 @@ export default function LivePreviewModal({ isOpen, onClose, user, displays = [],
           )}
         </div>
 
-        {/* Letreiro na Parte Inferior */}
+        {/* Letreiro */}
         {state?.announcement?.visible && state?.announcement?.text && (
           <div style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', background: 'rgba(14, 19, 48, 0.9)', padding: '0.5rem 0', zIndex: 20, overflow: 'hidden' }}>
             <div className="tv-banner-text" style={{ fontSize: '0.9rem' }}>

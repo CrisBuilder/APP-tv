@@ -29,6 +29,7 @@ export default function TV() {
   const [showTicket, setShowTicket] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [carouselIndex, setCarouselIndex] = useState(0);
+  const [videoIndex, setVideoIndex] = useState(0);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -99,7 +100,7 @@ export default function TV() {
     return state.background || { type: 'none' };
   }, [state.schedule, state.background, time]);
 
-  // Timer para Rotação do Carrossel de Imagens
+  // Rotação do Carrossel de Imagens
   useEffect(() => {
     if (activeBackground?.type === 'carousel' && Array.isArray(activeBackground.slides) && activeBackground.slides.length > 1) {
       const durationMs = (activeBackground.durationSec || 10) * 1000;
@@ -110,13 +111,30 @@ export default function TV() {
     }
   }, [activeBackground]);
 
+  // Avanço automático na Playlist de Vídeos Diretos
+  const handleDirectVideoEnded = () => {
+    if (activeBackground?.type === 'video_playlist' && Array.isArray(activeBackground.items) && activeBackground.items.length > 1) {
+      setVideoIndex((prev) => (prev + 1) % activeBackground.items.length);
+    }
+  };
+
+  // URL para Playlist do YouTube
+  const youtubePlaylistUrl = useMemo(() => {
+    if (activeBackground?.type === 'youtube_playlist' && Array.isArray(activeBackground.videoIds) && activeBackground.videoIds.length > 0) {
+      const firstId = activeBackground.videoIds[0];
+      const playlistParam = activeBackground.videoIds.join(',');
+      return `https://www.youtube.com/embed/${firstId}?autoplay=1&controls=0&mute=1&loop=1&playlist=${playlistParam}`;
+    }
+    return null;
+  }, [activeBackground]);
+
   if (!uid) {
     return <div style={{ color: '#fff', padding: '2rem', textAlign: 'center', background: '#000', height: '100vh' }}>ID da TV ausente.</div>;
   }
 
   return (
     <div className="tv-container">
-      {/* Camada de Mídia (Carrossel, Imagem Única ou YouTube) */}
+      {/* Camada de Mídia: Imagem, Carrossel, Vídeo Direto ou YouTube */}
       <div className="tv-background">
         {activeBackground?.type === 'carousel' && activeBackground.slides?.length > 0 && (
           <img
@@ -132,6 +150,29 @@ export default function TV() {
           <img src={activeBackground.url} alt="Fundo DisplayFlow" className="tv-media" />
         )}
 
+        {activeBackground?.type === 'video' && activeBackground.url && (
+          <video
+            src={activeBackground.url}
+            className="tv-media"
+            autoPlay
+            muted
+            loop
+            playsInline
+          />
+        )}
+
+        {activeBackground?.type === 'video_playlist' && activeBackground.items?.length > 0 && (
+          <video
+            key={activeBackground.items[videoIndex % activeBackground.items.length]?.url}
+            src={activeBackground.items[videoIndex % activeBackground.items.length]?.url}
+            className="tv-media"
+            autoPlay
+            muted
+            playsInline
+            onEnded={handleDirectVideoEnded}
+          />
+        )}
+
         {activeBackground?.type === 'youtube' && (
           <iframe
             className="tv-iframe"
@@ -141,9 +182,19 @@ export default function TV() {
             title="DisplayFlow YouTube"
           />
         )}
+
+        {activeBackground?.type === 'youtube_playlist' && youtubePlaylistUrl && (
+          <iframe
+            className="tv-iframe"
+            src={youtubePlaylistUrl}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            title="DisplayFlow YouTube Playlist"
+          />
+        )}
       </div>
 
-      {/* Relógio & Indicador de Modo Offline */}
+      {/* Relógio & Indicador Offline */}
       <div className="tv-clock-widget">
         {!isOnline && (
           <span style={{ fontSize: '0.65rem', background: '#E65B64', padding: '2px 8px', borderRadius: '10px', marginRight: '8px', verticalAlign: 'middle' }}>
@@ -177,7 +228,7 @@ export default function TV() {
         </div>
       </div>
 
-      {/* Modal de Chamada de Senha */}
+      {/* Modal de Senha */}
       {showTicket && state.ticket && (
         <div className="tv-ticket-modal">
           <div className="tv-ticket-content">
@@ -196,7 +247,7 @@ export default function TV() {
         </div>
       )}
 
-      {/* Letreiro Noticiário */}
+      {/* Letreiro */}
       {state.announcement?.visible && state.announcement.text && (
         <div className="tv-banner-container">
           <div className="tv-banner-text">

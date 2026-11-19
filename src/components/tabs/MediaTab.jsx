@@ -3,6 +3,7 @@ import { Upload, Video, Trash2, Image as ImageIcon, Link as LinkIcon, Layers, Ch
 import { broadcastToDisplays } from '../../services/displayService';
 import DisplayTargetSelector from '../DisplayTargetSelector';
 import CarouselManager from './CarouselManager';
+import VideoManager from './VideoManager';
 
 export default function MediaTab({
   user,
@@ -11,9 +12,8 @@ export default function MediaTab({
   imgbbKey
 }) {
   const [targets, setTargets] = useState(selectedDisplayId);
-  const [mediaMode, setMediaMode] = useState('single'); // 'single' | 'carousel' | 'youtube'
+  const [mediaMode, setMediaMode] = useState('single'); // 'single' | 'carousel' | 'video'
   const [directImageUrl, setDirectImageUrl] = useState('');
-  const [youtubeLink, setYoutubeLink] = useState('');
   const [uploading, setUploading] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
 
@@ -74,36 +74,6 @@ export default function MediaTab({
     setDirectImageUrl('');
   };
 
-  const handleYoutubeSubmit = async (e) => {
-    e.preventDefault();
-    if (!youtubeLink.trim()) return;
-
-    let videoId = '';
-    try {
-      if (youtubeLink.includes('youtu.be/')) {
-        videoId = youtubeLink.split('youtu.be/')[1].split('?')[0];
-      } else if (youtubeLink.includes('youtube.com/watch')) {
-        const url = new URL(youtubeLink);
-        videoId = url.searchParams.get('v');
-      } else {
-        videoId = youtubeLink.trim();
-      }
-
-      if (!videoId) throw new Error();
-
-      await broadcastToDisplays(user.uid, targets, 'background', {
-        type: 'youtube',
-        videoId,
-        timestamp: Date.now()
-      }, displays);
-
-      showFeedback('Vídeo do YouTube transmitido em loop para as TVs!');
-      setYoutubeLink('');
-    } catch {
-      alert('Link do YouTube inválido.');
-    }
-  };
-
   const handleClear = async () => {
     if (window.confirm('Deseja remover a mídia de fundo da(s) tela(s)?')) {
       await broadcastToDisplays(user.uid, targets, 'background', { type: 'none' }, displays);
@@ -115,10 +85,10 @@ export default function MediaTab({
     <div className="df-card">
       <div style={{ marginBottom: '1.25rem' }}>
         <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--ink)' }}>
-          Mídia de Fundo (Carrossel, Imagem & Vídeos)
+          Mídia de Fundo (Imagens & Vídeos)
         </h3>
         <p style={{ color: 'var(--mute)', fontSize: '0.88rem' }}>
-          Defina o visual principal da tela: selecione uma imagem estática, monte um carrossel rotativo ou reproduza vídeos.
+          Defina o visual principal da tela: imagem única, carrossel rotativo ou reprodução de vídeos diretos e do YouTube.
         </p>
       </div>
 
@@ -152,16 +122,16 @@ export default function MediaTab({
           className={`df-btn ${mediaMode === 'carousel' ? 'df-btn-pri' : 'df-btn-sec'}`}
           style={{ padding: '0.45rem 1rem', fontSize: '0.85rem' }}
         >
-          <Layers size={16} /> Carrossel Rotativo
+          <Layers size={16} /> Carrossel de Imagens
         </button>
 
         <button
           type="button"
-          onClick={() => setMediaMode('youtube')}
-          className={`df-btn ${mediaMode === 'youtube' ? 'df-btn-pri' : 'df-btn-sec'}`}
+          onClick={() => setMediaMode('video')}
+          className={`df-btn ${mediaMode === 'video' ? 'df-btn-pri' : 'df-btn-sec'}`}
           style={{ padding: '0.45rem 1rem', fontSize: '0.85rem' }}
         >
-          <Video size={16} /> Vídeo do YouTube
+          <Video size={16} /> Vídeos (Upload / YouTube)
         </button>
       </div>
 
@@ -184,7 +154,7 @@ export default function MediaTab({
 
           <div style={{ background: 'var(--bg)', padding: '1.25rem', borderRadius: 'var(--radius-card)', border: '1px solid var(--line)' }}>
             <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem', fontWeight: '700', marginBottom: '0.75rem' }}>
-              <LinkIcon size={18} color="var(--pri)" /> Inserir por URL
+              <LinkIcon size={18} color="var(--pri)" /> Inserir por URL Direta
             </h4>
             <form onSubmit={handleDirectImageSubmit}>
               <div className="df-field">
@@ -215,26 +185,14 @@ export default function MediaTab({
         />
       )}
 
-      {/* Modo: YouTube */}
-      {mediaMode === 'youtube' && (
-        <div style={{ background: 'var(--bg)', padding: '1.25rem', borderRadius: 'var(--radius-card)', border: '1px solid var(--line)' }}>
-          <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem', fontWeight: '700', marginBottom: '0.5rem' }}>
-            <Video size={18} color="var(--pri)" /> Vídeo do YouTube em Loop Contínuo
-          </h4>
-          <form onSubmit={handleYoutubeSubmit} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <input
-              type="text"
-              value={youtubeLink}
-              onChange={(e) => setYoutubeLink(e.target.value)}
-              placeholder="Cole o link: https://www.youtube.com/watch?v=..."
-              style={{ flex: 1, minWidth: '220px', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-btn)', border: '1px solid var(--line)' }}
-              required
-            />
-            <button type="submit" className="df-btn df-btn-pri">
-              Transmitir Vídeo
-            </button>
-          </form>
-        </div>
+      {/* Modo: Gerenciador Avançado de Vídeos (Upload e YouTube) */}
+      {mediaMode === 'video' && (
+        <VideoManager
+          user={user}
+          displays={displays}
+          targets={targets}
+          onFeedback={showFeedback}
+        />
       )}
 
       <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'flex-end' }}>

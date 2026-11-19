@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
 import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 
 // =============================================================================
 // 📺 SIGNAGE.PRO - CONFIGURAÇÕES DO SISTEMA
@@ -77,3 +78,4 @@ const getDatabaseInstance = () => {
 
 export const db = getDatabaseInstance();
 export const auth = getAuth(app);
+export const storage = getStorage(app);

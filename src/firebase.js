@@ -26,13 +26,13 @@ export const IMGBB_API_KEY = import.meta.env.VITE_IMGBB_API_KEY || "";
 // 4. Copie o bloco "firebaseConfig" que o Firebase fornecer e COLE EXATAMENTE AQUI:
 
 export const firebaseConfig = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: "",
-  databaseURL: "" // Opcional (se não preenchido, o sistema detecta automaticamente)
+  apiKey: "AIzaSyC-aYph8mNm9OowQOVWFAN9gVHp7mZG7Kc",
+  authDomain: "displayflow-6b14f.firebaseapp.com",
+  projectId: "displayflow-6b14f",
+  storageBucket: "displayflow-6b14f.firebasestorage.app",
+  messagingSenderId: "593348833579",
+  appId: "1:593348833579:web:88aeec6ac6fd7d0a05156e",
+  databaseURL: "https://displayflow-6b14f-default-rtdb.firebaseio.com"
 };
 
 // =============================================================================

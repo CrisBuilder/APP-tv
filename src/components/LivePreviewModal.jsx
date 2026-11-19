@@ -8,6 +8,7 @@ export default function LivePreviewModal({ isOpen, onClose, user, displays = [],
   const [activeDisplayId, setActiveDisplayId] = useState(initialDisplayId);
   const [state, setState] = useState(null);
   const [time, setTime] = useState(new Date());
+  const [carouselIndex, setCarouselIndex] = useState(0);
 
   useEffect(() => {
     setActiveDisplayId(initialDisplayId);
@@ -33,12 +34,26 @@ export default function LivePreviewModal({ isOpen, onClose, user, displays = [],
     return () => unsubscribe();
   }, [isOpen, user, activeDisplayId]);
 
+  // Rotação do Carrossel no Preview
+  useEffect(() => {
+    const bg = state?.background;
+    if (bg?.type === 'carousel' && Array.isArray(bg.slides) && bg.slides.length > 1) {
+      const durationMs = (bg.durationSec || 10) * 1000;
+      const interval = setInterval(() => {
+        setCarouselIndex((prev) => (prev + 1) % bg.slides.length);
+      }, durationMs);
+      return () => clearInterval(interval);
+    }
+  }, [state?.background]);
+
   if (!isOpen) return null;
 
   const currentDisplay = displays.find((d) => d.id === activeDisplayId);
   const tvUrl = activeDisplayId === 'all'
     ? `${window.location.origin}/tv/${user?.uid}`
     : `${window.location.origin}/tv/${user?.uid}/${activeDisplayId}`;
+
+  const bg = state?.background;
 
   return (
     <div style={{
@@ -47,7 +62,7 @@ export default function LivePreviewModal({ isOpen, onClose, user, displays = [],
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       zIndex: 1000, padding: '1rem'
     }}>
-      {/* Barra de Controle Superior do Modal */}
+      {/* Barra de Controle Superior */}
       <div style={{
         maxWidth: '1000px', width: '100%',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -108,19 +123,28 @@ export default function LivePreviewModal({ isOpen, onClose, user, displays = [],
       }}>
         {/* Fundo da TV */}
         <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1 }}>
-          {state?.background?.type === 'image' && (
-            <img src={state.background.url} alt="Fundo Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          {bg?.type === 'carousel' && bg.slides?.length > 0 && (
+            <img
+              key={bg.slides[carouselIndex % bg.slides.length]?.url}
+              src={bg.slides[carouselIndex % bg.slides.length]?.url}
+              alt="Carrossel Preview"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', animation: 'fadeIn 0.7s ease' }}
+            />
           )}
 
-          {state?.background?.type === 'youtube' && (
+          {bg?.type === 'image' && bg.url && (
+            <img src={bg.url} alt="Fundo Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          )}
+
+          {bg?.type === 'youtube' && (
             <iframe
               style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }}
-              src={`https://www.youtube.com/embed/${state.background.videoId}?autoplay=1&controls=0&mute=1&loop=1&playlist=${state.background.videoId}`}
+              src={`https://www.youtube.com/embed/${bg.videoId}?autoplay=1&controls=0&mute=1&loop=1&playlist=${bg.videoId}`}
               title="YouTube Preview"
             />
           )}
 
-          {(!state?.background || state?.background?.type === 'none') && (
+          {(!bg || bg.type === 'none') && (
             <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #090D1A 0%, #161C42 100%)', color: '#64748B' }}>
               <Tv size={48} style={{ opacity: 0.4, marginBottom: '0.5rem' }} />
               <p style={{ fontSize: '0.9rem' }}>Nenhuma imagem ou vídeo ativo no fundo</p>

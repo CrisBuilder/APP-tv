@@ -9,7 +9,6 @@ export default function TV() {
   const { uid, displayId } = useParams();
   const cacheKey = `df_tv_cache_${uid}_${displayId || 'default'}`;
 
-  // Recupera estado inicial salvo em cache local para inicialização instantânea offline
   const [state, setState] = useState(() => {
     try {
       const cached = localStorage.getItem(cacheKey);
@@ -29,6 +28,7 @@ export default function TV() {
   const [time, setTime] = useState(new Date());
   const [showTicket, setShowTicket] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [carouselIndex, setCarouselIndex] = useState(0);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -41,13 +41,11 @@ export default function TV() {
     };
   }, []);
 
-  // Relógio de precisão a cada segundo
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Escuta Firebase em tempo real e atualiza cache offline
   useEffect(() => {
     if (!uid) return;
 
@@ -72,7 +70,6 @@ export default function TV() {
     return () => unsubscribe();
   }, [uid, displayId, cacheKey]);
 
-  // Chamada de Senha com Áudio Nativo Sintetizado (Offline)
   useEffect(() => {
     if (state.ticket?.timestamp && state.ticket?.visible) {
       playChimeSound();
@@ -82,7 +79,7 @@ export default function TV() {
     }
   }, [state.ticket?.timestamp, state.ticket?.visible]);
 
-  // Avaliação do Agendamento por Horário / Turnos
+  // Avaliação de Turnos vs Fundo Padrão
   const activeBackground = useMemo(() => {
     if (state.schedule?.enabled && Array.isArray(state.schedule.shifts) && state.schedule.shifts.length > 0) {
       const currentHours = String(time.getHours()).padStart(2, '0');
@@ -91,10 +88,7 @@ export default function TV() {
 
       const activeShift = state.schedule.shifts.find((s) => {
         if (!s.start || !s.end || !s.mediaUrl) return false;
-        if (s.start <= s.end) {
-          return currentTimeStr >= s.start && currentTimeStr < s.end;
-        }
-        // Turno que vira a noite (ex: 22:00 até 04:00)
+        if (s.start <= s.end) return currentTimeStr >= s.start && currentTimeStr < s.end;
         return currentTimeStr >= s.start || currentTimeStr < s.end;
       });
 
@@ -105,14 +99,35 @@ export default function TV() {
     return state.background || { type: 'none' };
   }, [state.schedule, state.background, time]);
 
+  // Timer para Rotação do Carrossel de Imagens
+  useEffect(() => {
+    if (activeBackground?.type === 'carousel' && Array.isArray(activeBackground.slides) && activeBackground.slides.length > 1) {
+      const durationMs = (activeBackground.durationSec || 10) * 1000;
+      const interval = setInterval(() => {
+        setCarouselIndex((prev) => (prev + 1) % activeBackground.slides.length);
+      }, durationMs);
+      return () => clearInterval(interval);
+    }
+  }, [activeBackground]);
+
   if (!uid) {
     return <div style={{ color: '#fff', padding: '2rem', textAlign: 'center', background: '#000', height: '100vh' }}>ID da TV ausente.</div>;
   }
 
   return (
     <div className="tv-container">
-      {/* Camada de Fundo (Normal ou Turno Ativo) */}
+      {/* Camada de Mídia (Carrossel, Imagem Única ou YouTube) */}
       <div className="tv-background">
+        {activeBackground?.type === 'carousel' && activeBackground.slides?.length > 0 && (
+          <img
+            key={activeBackground.slides[carouselIndex % activeBackground.slides.length]?.url}
+            src={activeBackground.slides[carouselIndex % activeBackground.slides.length]?.url}
+            alt="Carrossel DisplayFlow"
+            className="tv-media"
+            style={{ animation: 'fadeIn 0.7s ease' }}
+          />
+        )}
+
         {activeBackground?.type === 'image' && activeBackground.url && (
           <img src={activeBackground.url} alt="Fundo DisplayFlow" className="tv-media" />
         )}
@@ -128,7 +143,7 @@ export default function TV() {
         )}
       </div>
 
-      {/* Relógio & Indicador de Conexão */}
+      {/* Relógio & Indicador de Modo Offline */}
       <div className="tv-clock-widget">
         {!isOnline && (
           <span style={{ fontSize: '0.65rem', background: '#E65B64', padding: '2px 8px', borderRadius: '10px', marginRight: '8px', verticalAlign: 'middle' }}>
@@ -162,7 +177,7 @@ export default function TV() {
         </div>
       </div>
 
-      {/* Chamada de Senha */}
+      {/* Modal de Chamada de Senha */}
       {showTicket && state.ticket && (
         <div className="tv-ticket-modal">
           <div className="tv-ticket-content">
@@ -181,7 +196,7 @@ export default function TV() {
         </div>
       )}
 
-      {/* Letreiro */}
+      {/* Letreiro Noticiário */}
       {state.announcement?.visible && state.announcement.text && (
         <div className="tv-banner-container">
           <div className="tv-banner-text">

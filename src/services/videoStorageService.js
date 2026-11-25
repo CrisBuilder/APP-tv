@@ -29,6 +29,7 @@ export function uploadVideoToStorage(userId, file, onProgress) {
         resolve({
           name: file.name,
           url: downloadUrl,
+          storagePath,
           size: file.size,
           type: file.type
         });

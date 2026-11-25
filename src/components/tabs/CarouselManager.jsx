@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Upload, Plus, Trash2, Clock, CheckCircle2, Layers } from 'lucide-react';
 import { broadcastToDisplays } from '../../services/displayService';
+import { saveMediaToLibrary } from '../../services/mediaLibraryService';
+import MediaLibraryPanel from './MediaLibraryPanel';
 
 export default function CarouselManager({
   user,
@@ -35,6 +37,12 @@ export default function CarouselManager({
       const data = await response.json();
 
       if (data.success) {
+        await saveMediaToLibrary(user.uid, {
+          name: file.name,
+          url: data.data.url,
+          type: 'image',
+          size: file.size
+        });
         const newSlide = {
           id: `slide_${Date.now()}`,
           url: data.data.url,
@@ -52,17 +60,32 @@ export default function CarouselManager({
     }
   };
 
-  const handleAddDirectUrl = (e) => {
+  const handleAddDirectUrl = async (e) => {
     e.preventDefault();
     if (!directUrl.trim()) return;
 
+    const cleanUrl = directUrl.trim();
+    const slideName = `Slide ${slides.length + 1}`;
+    await saveMediaToLibrary(user.uid, {
+      name: cleanUrl.split('/').pop()?.split('?')[0] || slideName,
+      url: cleanUrl,
+      type: 'image'
+    });
+
     const newSlide = {
       id: `slide_${Date.now()}`,
-      url: directUrl.trim(),
-      name: `Slide ${slides.length + 1}`
+      url: cleanUrl,
+      name: slideName
     };
     setSlides((prev) => [...prev, newSlide]);
     setDirectUrl('');
+  };
+
+  const handleSelectFromLibrary = (item) => {
+    setSlides((prev) => [
+      ...prev,
+      { id: `slide_${Date.now()}`, url: item.url, name: item.name }
+    ]);
   };
 
   const handleRemoveSlide = (index) => {
@@ -214,6 +237,13 @@ export default function CarouselManager({
       >
         <Layers size={16} /> Publicar Carrossel nas TVs ({slides.length} slides)
       </button>
+
+      <MediaLibraryPanel
+        user={user}
+        filterType="image"
+        selectLabel="Ao Carrossel"
+        onSelectMedia={handleSelectFromLibrary}
+      />
     </div>
   );
 }

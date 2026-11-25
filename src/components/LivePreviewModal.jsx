@@ -52,7 +52,7 @@ export default function LivePreviewModal({ isOpen, onClose, user, displays = [],
     if (bg?.type === 'youtube_playlist' && Array.isArray(bg.videoIds) && bg.videoIds.length > 0) {
       const firstId = bg.videoIds[0];
       const playlistParam = bg.videoIds.join(',');
-      return `https://www.youtube.com/embed/${firstId}?autoplay=1&controls=0&mute=1&loop=1&playlist=${playlistParam}`;
+      return `https://www.youtube.com/embed/${firstId}?autoplay=1&controls=0&mute=1&playsinline=1&rel=0&loop=1&playlist=${playlistParam}`;
     }
     return null;
   }, [state?.background]);
@@ -160,13 +160,15 @@ export default function LivePreviewModal({ isOpen, onClose, user, displays = [],
               muted
               playsInline
               onEnded={() => setVideoIndex((prev) => (prev + 1) % bg.items.length)}
+              onError={() => setVideoIndex((prev) => (prev + 1) % bg.items.length)}
             />
           )}
 
           {bg?.type === 'youtube' && (
             <iframe
               style={{ width: '100%', height: '100%', border: 'none', pointerEvents: 'none' }}
-              src={`https://www.youtube.com/embed/${bg.videoId}?autoplay=1&controls=0&mute=1&loop=1&playlist=${bg.videoId}`}
+              src={`https://www.youtube.com/embed/${bg.videoId}?autoplay=1&controls=0&mute=1&playsinline=1&rel=0&loop=1&playlist=${bg.videoId}`}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               title="YouTube Preview"
             />
           )}

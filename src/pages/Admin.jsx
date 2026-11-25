@@ -10,6 +10,7 @@ import PairingModal from '../components/PairingModal';
 import LivePreviewModal from '../components/LivePreviewModal';
 
 import DisplaysTab from '../components/tabs/DisplaysTab';
+import OverviewTab from '../components/tabs/OverviewTab';
 import MediaTab from '../components/tabs/MediaTab';
 import ScheduleTab from '../components/tabs/ScheduleTab';
 import AnnouncementTab from '../components/tabs/AnnouncementTab';
@@ -20,15 +21,16 @@ import BillingTab from '../components/tabs/BillingTab';
 import SettingsTab from '../components/tabs/SettingsTab';
 
 export default function Admin({ user }) {
-  const [activeTab, setActiveTab] = useState('displays');
+  const urlPairCode = new URLSearchParams(window.location.search).get('pair') || '';
+  const [activeTab, setActiveTab] = useState('overview');
   const [displays, setDisplays] = useState([]);
   const [selectedDisplayId, setSelectedDisplayId] = useState('all');
   const [imgbbKey, setImgbbKey] = useState(IMGBB_API_KEY || '');
-  const [profile, setProfile] = useState({ name: '', city: '' });
+  const [profile, setProfile] = useState({ name: '', city: '', segment: 'Todos os negócios' });
   const [currentState, setCurrentState] = useState({});
 
   // Modais
-  const [isPairModalOpen, setIsPairModalOpen] = useState(false);
+  const [isPairModalOpen, setIsPairModalOpen] = useState(Boolean(urlPairCode));
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
 
   // Escuta telas e configurações do usuário no Firebase
@@ -93,6 +95,19 @@ export default function Admin({ user }) {
 
         {/* Área Central de Conteúdo */}
         <main className="df-content">
+          {activeTab === 'overview' && (
+            <OverviewTab
+              user={user}
+              displays={displays}
+              selectedDisplayId={selectedDisplayId}
+              currentState={currentState}
+              profile={profile}
+              onUpdateProfile={setProfile}
+              onNavigateTab={setActiveTab}
+              onOpenPairModal={() => setIsPairModalOpen(true)}
+            />
+          )}
+
           {activeTab === 'displays' && (
             <DisplaysTab
               displays={displays}
@@ -180,6 +195,8 @@ export default function Admin({ user }) {
         isOpen={isPairModalOpen}
         onClose={() => setIsPairModalOpen(false)}
         user={user}
+        displays={displays}
+        initialCode={urlPairCode}
         onDisplayCreated={(newD) => setSelectedDisplayId(newD.id)}
       />
 

@@ -108,7 +108,7 @@ export async function createPairingSession() {
 /**
  * Reclama um código de 6 caracteres no painel de administração
  */
-export async function claimPairingCode(userId, code, displayName, location) {
+export async function claimPairingCode(userId, code, displayName, location, existingDisplayId = '') {
   if (!userId || !code) throw new Error('Código ou usuário inválido');
   const cleanCode = code.toUpperCase().trim();
   const pairingRef = ref(db, `pairings/${cleanCode}`);
@@ -127,21 +127,68 @@ export async function claimPairingCode(userId, code, displayName, location) {
     throw new Error('O código de emparelhamento expirou.');
   }
 
-  // Cria a tela para o usuário
-  const newDisplay = await saveDisplay(userId, {
-    name: displayName || `TV ${cleanCode}`,
-    location: location || 'Emparelhada por código'
-  });
+  let targetDisplay;
+  if (existingDisplayId) {
+    const existingSnap = await get(ref(db, `users/${userId}/displays/${existingDisplayId}`));
+    if (existingSnap.exists()) {
+      targetDisplay = { id: existingDisplayId, ...existingSnap.val() };
+      await update(ref(db, `users/${userId}/displays/${existingDisplayId}`), {
+        status: 'online',
+        lastSeen: Date.now()
+      });
+    }
+  }
+
+  if (!targetDisplay) {
+    targetDisplay = await saveDisplay(userId, {
+      name: displayName || `TV ${cleanCode}`,
+      location: location || 'Emparelhada por código'
+    });
+  }
 
   // Atualiza a sessão avisando a TV para se conectar a este display
   await update(pairingRef, {
     status: 'PAIRED',
     userId,
-    displayId: newDisplay.id,
+    displayId: targetDisplay.id,
     claimedAt: Date.now()
   });
 
-  return newDisplay;
+  return targetDisplay;
+}
+
+/**
+ * Envia sinal de vida (heartbeat) da TV conectada
+ */
+export async function sendDisplayHeartbeat(userId, displayId) {
+  if (!userId || !displayId) return;
+  await update(ref(db, `users/${userId}/displays/${displayId}`), {
+    lastSeen: Date.now(),
+    status: 'online'
+  });
+}
+
+/**
+ * Atualiza nome e localização de uma TV
+ */
+export async function updateDisplayMeta(userId, displayId, { name, location }) {
+  if (!userId || !displayId) return;
+  await update(ref(db, `users/${userId}/displays/${displayId}`), {
+    name: name || 'TV',
+    location: location || 'Geral',
+    updatedAt: Date.now()
+  });
+}
+
+/**
+ * Atualiza ajustes de imagem e relógio da TV
+ */
+export async function updateDisplaySettings(userId, displayId, settings) {
+  if (!userId || !displayId) return;
+  await update(ref(db, `users/${userId}/displays/${displayId}/settings`), {
+    ...settings,
+    updatedAt: Date.now()
+  });
 }
 
 /**

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Upload, Video, Trash2, Image as ImageIcon, Link as LinkIcon, Layers, CheckCircle2 } from 'lucide-react';
 import { broadcastToDisplays } from '../../services/displayService';
+import { saveMediaToLibrary } from '../../services/mediaLibraryService';
 import DisplayTargetSelector from '../DisplayTargetSelector';
 import CarouselManager from './CarouselManager';
 import VideoManager from './VideoManager';
+import MediaLibraryPanel from './MediaLibraryPanel';
 
 export default function MediaTab({
   user,
@@ -43,12 +45,18 @@ export default function MediaTab({
       const data = await response.json();
 
       if (data.success) {
+        await saveMediaToLibrary(user.uid, {
+          name: file.name,
+          url: data.data.url,
+          type: 'image',
+          size: file.size
+        });
         await broadcastToDisplays(user.uid, targets, 'background', {
           type: 'image',
           url: data.data.url,
           timestamp: Date.now()
         }, displays);
-        showFeedback('Imagem única transmitida com sucesso para as TVs!');
+        showFeedback('Imagem única salva na biblioteca e transmitida para as TVs!');
       } else {
         alert('Erro no envio: ' + (data.error?.message || 'Falha no ImgBB'));
       }
@@ -64,14 +72,32 @@ export default function MediaTab({
     e.preventDefault();
     if (!directImageUrl.trim()) return;
 
+    const cleanUrl = directImageUrl.trim();
+    await saveMediaToLibrary(user.uid, {
+      name: cleanUrl.split('/').pop()?.split('?')[0] || 'Imagem URL',
+      url: cleanUrl,
+      type: 'image'
+    });
+
     await broadcastToDisplays(user.uid, targets, 'background', {
       type: 'image',
-      url: directImageUrl.trim(),
+      url: cleanUrl,
       timestamp: Date.now()
     }, displays);
 
-    showFeedback('Imagem única transmitida para as TVs!');
+    showFeedback('Imagem única salva na biblioteca e transmitida para as TVs!');
     setDirectImageUrl('');
+  };
+
+  const handleBroadcastFromLibrary = async (item) => {
+    if (item.type === 'image') {
+      await broadcastToDisplays(user.uid, targets, 'background', {
+        type: 'image',
+        url: item.url,
+        timestamp: Date.now()
+      }, displays);
+      showFeedback(`Imagem "${item.name}" transmitida para as TVs!`);
+    }
   };
 
   const handleClear = async () => {
@@ -137,41 +163,49 @@ export default function MediaTab({
 
       {/* Modo: Imagem Única */}
       {mediaMode === 'single' && (
-        <div className="df-grid-2">
-          <div style={{ background: 'var(--bg)', padding: '1.25rem', borderRadius: 'var(--radius-card)', border: '1px solid var(--line)' }}>
-            <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem', fontWeight: '700', marginBottom: '0.75rem' }}>
-              <Upload size={18} color="var(--pri)" /> Upload do Celular/PC
-            </h4>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleSingleImageUpload}
-              disabled={uploading}
-              style={{ width: '100%', fontSize: '0.85rem' }}
-            />
-            {uploading && <p style={{ marginTop: '0.5rem', color: 'var(--pri)', fontSize: '0.85rem', fontWeight: '600' }}>Enviando imagem...</p>}
+        <>
+          <div className="df-grid-2">
+            <div style={{ background: 'var(--bg)', padding: '1.25rem', borderRadius: 'var(--radius-card)', border: '1px solid var(--line)' }}>
+              <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem', fontWeight: '700', marginBottom: '0.75rem' }}>
+                <Upload size={18} color="var(--pri)" /> Upload do Celular/PC
+              </h4>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleSingleImageUpload}
+                disabled={uploading}
+                style={{ width: '100%', fontSize: '0.85rem' }}
+              />
+              {uploading && <p style={{ marginTop: '0.5rem', color: 'var(--pri)', fontSize: '0.85rem', fontWeight: '600' }}>Enviando imagem...</p>}
+            </div>
+
+            <div style={{ background: 'var(--bg)', padding: '1.25rem', borderRadius: 'var(--radius-card)', border: '1px solid var(--line)' }}>
+              <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem', fontWeight: '700', marginBottom: '0.75rem' }}>
+                <LinkIcon size={18} color="var(--pri)" /> Inserir por URL Direta
+              </h4>
+              <form onSubmit={handleDirectImageSubmit}>
+                <div className="df-field">
+                  <input
+                    type="url"
+                    value={directImageUrl}
+                    onChange={(e) => setDirectImageUrl(e.target.value)}
+                    placeholder="https://exemplo.com/banner.jpg"
+                    required
+                  />
+                </div>
+                <button type="submit" className="df-btn df-btn-sec" style={{ width: '100%' }}>
+                  Aplicar Imagem
+                </button>
+              </form>
+            </div>
           </div>
 
-          <div style={{ background: 'var(--bg)', padding: '1.25rem', borderRadius: 'var(--radius-card)', border: '1px solid var(--line)' }}>
-            <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.95rem', fontWeight: '700', marginBottom: '0.75rem' }}>
-              <LinkIcon size={18} color="var(--pri)" /> Inserir por URL Direta
-            </h4>
-            <form onSubmit={handleDirectImageSubmit}>
-              <div className="df-field">
-                <input
-                  type="url"
-                  value={directImageUrl}
-                  onChange={(e) => setDirectImageUrl(e.target.value)}
-                  placeholder="https://exemplo.com/banner.jpg"
-                  required
-                />
-              </div>
-              <button type="submit" className="df-btn df-btn-sec" style={{ width: '100%' }}>
-                Aplicar Imagem
-              </button>
-            </form>
-          </div>
-        </div>
+          <MediaLibraryPanel
+            user={user}
+            filterType="image"
+            onBroadcastMedia={handleBroadcastFromLibrary}
+          />
+        </>
       )}
 
       {/* Modo: Carrossel Rotativo */}

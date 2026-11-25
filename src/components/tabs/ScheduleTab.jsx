@@ -1,13 +1,13 @@
-import { useState } from 'react';
-import { Clock, CheckCircle2, Plus, Trash2, Power } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Clock, CheckCircle2, Plus, Trash2, Power, Sun, Sunset, Moon } from 'lucide-react';
 import { broadcastToDisplays } from '../../services/displayService';
+import { subscribeMediaLibrary } from '../../services/mediaLibraryService';
 import DisplayTargetSelector from '../DisplayTargetSelector';
 
-const DEFAULT_SHIFTS = [
-  { id: 'shift_1', name: 'Café da Manhã & Manhã', start: '07:00', end: '11:00', mediaUrl: '', mediaType: 'image' },
-  { id: 'shift_2', name: 'Almoço & Menu do Dia', start: '11:00', end: '15:00', mediaUrl: '', mediaType: 'image' },
-  { id: 'shift_3', name: 'Tarde & Ofertas Especiais', start: '15:00', end: '19:00', mediaUrl: '', mediaType: 'image' },
-  { id: 'shift_4', name: 'Jantar & Noite', start: '19:00', end: '23:00', mediaUrl: '', mediaType: 'image' }
+const PERIODS = [
+  { id: 'morning', code: '01', label: 'Manhã', range: '06h às 12h', start: '06:00', end: '12:00', icon: Sun },
+  { id: 'afternoon', code: '02', label: 'Tarde', range: '12h às 18h', start: '12:00', end: '18:00', icon: Sunset },
+  { id: 'night', code: '03', label: 'Noite', range: '18h às 06h', start: '18:00', end: '06:00', icon: Moon }
 ];
 
 export default function ScheduleTab({
@@ -18,47 +18,58 @@ export default function ScheduleTab({
 }) {
   const [targets, setTargets] = useState(selectedDisplayId);
   const [enabled, setEnabled] = useState(initialSchedule.enabled || false);
-  const [shifts, setShifts] = useState(initialSchedule.shifts || DEFAULT_SHIFTS);
+  const [shifts, setShifts] = useState(initialSchedule.shifts || []);
+  const [libraryItems, setLibraryItems] = useState([]);
+  const [addingPeriod, setAddingPeriod] = useState(null);
+  const [customUrl, setCustomUrl] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
 
-  const handleUpdateShift = (index, field, value) => {
-    const updated = [...shifts];
-    updated[index][field] = value;
-    setShifts(updated);
+  useEffect(() => {
+    if (!user?.uid) return;
+    return subscribeMediaLibrary(user.uid, (items) => {
+      setLibraryItems(items.filter((i) => i.type === 'image'));
+    });
+  }, [user?.uid]);
+
+  const classifyPeriod = (shift) => {
+    if (shift.period) return shift.period;
+    const startH = parseInt((shift.start || '06:00').split(':')[0], 10);
+    if (startH >= 6 && startH < 12) return 'morning';
+    if (startH >= 12 && startH < 18) return 'afternoon';
+    return 'night';
   };
 
-  const handleAddShift = () => {
+  const handleAddMediaToPeriod = (periodObj, mediaItem) => {
     const newShift = {
-      id: `shift_${Date.now()}`,
-      name: 'Novo Turno',
-      start: '08:00',
-      end: '12:00',
-      mediaUrl: '',
+      id: `shift_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      period: periodObj.id,
+      name: mediaItem.name || `Banner ${periodObj.label}`,
+      start: periodObj.start,
+      end: periodObj.end,
+      mediaUrl: mediaItem.url,
       mediaType: 'image'
     };
-    setShifts([...shifts, newShift]);
+    setShifts((prev) => [...prev, newShift]);
+    setAddingPeriod(null);
+    setCustomUrl('');
   };
 
-  const handleRemoveShift = (index) => {
-    if (shifts.length <= 1) {
-      alert('Você precisa manter ao menos um turno cadastrado.');
-      return;
-    }
-    setShifts(shifts.filter((_, i) => i !== index));
+  const handleRemoveShift = (shiftId) => {
+    setShifts((prev) => prev.filter((s) => s.id !== shiftId));
   };
 
-  const handleSaveSchedule = async (e) => {
-    e.preventDefault();
+  const handleUpdateTime = (shiftId, field, value) => {
+    setShifts((prev) => prev.map((s) => (s.id === shiftId ? { ...s, [field]: value } : s)));
+  };
 
+  const handleSaveSchedule = async () => {
     const payload = {
       enabled,
       shifts,
       updatedAt: Date.now()
     };
-
     await broadcastToDisplays(user.uid, targets, 'schedule', payload, displays);
-
-    setStatusMsg('Programação de horários salva e ativada nas TVs!');
+    setStatusMsg('Programação por faixas salva e enviada para as TVs!');
     setTimeout(() => setStatusMsg(''), 4000);
   };
 
@@ -66,23 +77,31 @@ export default function ScheduleTab({
     <div className="df-card">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--ink)' }}>
-            Agendamento por Horários & Turnos
+          <span style={{ fontSize: '0.72rem', fontWeight: '700', color: 'var(--pri)', textTransform: 'uppercase' }}>
+            Horários de Exibição
+          </span>
+          <h3 style={{ fontSize: '1.3rem', fontWeight: '800', color: 'var(--ink)' }}>
+            O banner certo em cada horário
           </h3>
           <p style={{ color: 'var(--mute)', fontSize: '0.88rem' }}>
-            A TV troca o conteúdo automaticamente de acordo com o horário do dia (ex: café, almoço e jantar).
+            Organize as campanhas por período do dia (Manhã, Tarde e Noite). As TVs trocam automaticamente.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setEnabled(!enabled)}
-          className={`df-btn ${enabled ? 'df-btn-pri' : 'df-btn-sec'}`}
-          style={{ padding: '0.5rem 1rem' }}
-        >
-          <Power size={16} />
-          {enabled ? '✓ Agendamento Ativo' : 'Agendamento Desativado'}
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => setEnabled(!enabled)}
+            className={`df-btn ${enabled ? 'df-btn-pri' : 'df-btn-sec'}`}
+          >
+            <Power size={16} />
+            {enabled ? 'Programação Ativa' : 'Programação Desativada'}
+          </button>
+
+          <button type="button" onClick={handleSaveSchedule} className="df-btn df-btn-pri">
+            <Clock size={16} /> Salvar Horários
+          </button>
+        </div>
       </div>
 
       <DisplayTargetSelector
@@ -98,86 +117,122 @@ export default function ScheduleTab({
         </div>
       )}
 
-      <form onSubmit={handleSaveSchedule}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
-          {shifts.map((shift, idx) => (
-            <div
-              key={shift.id || idx}
-              style={{
-                background: 'var(--bg)',
-                border: '1px solid var(--line)',
-                borderRadius: 'var(--radius-btn)',
-                padding: '1rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.75rem'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <input
-                  type="text"
-                  value={shift.name}
-                  onChange={(e) => handleUpdateShift(idx, 'name', e.target.value)}
-                  placeholder="Nome do Turno"
-                  style={{ fontWeight: '700', fontSize: '0.95rem', border: 'none', background: 'transparent', outline: 'none', color: 'var(--ink)' }}
-                  required
-                />
+      {/* 3 Colunas: Manhã, Tarde, Noite */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+        {PERIODS.map((period) => {
+          const Icon = period.icon;
+          const periodShifts = shifts.filter((s) => classifyPeriod(s) === period.id);
 
+          return (
+            <div key={period.id} style={{ background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: '14px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem' }}>
-                    <Clock size={14} color="var(--pri)" />
-                    <input
-                      type="time"
-                      value={shift.start}
-                      onChange={(e) => handleUpdateShift(idx, 'start', e.target.value)}
-                      style={{ padding: '4px 6px', borderRadius: '6px', border: '1px solid var(--line)' }}
-                      required
-                    />
-                    <span>até</span>
-                    <input
-                      type="time"
-                      value={shift.end}
-                      onChange={(e) => handleUpdateShift(idx, 'end', e.target.value)}
-                      style={{ padding: '4px 6px', borderRadius: '6px', border: '1px solid var(--line)' }}
-                      required
-                    />
+                  <span style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--pri)' }}>{period.code}</span>
+                  <div>
+                    <div style={{ fontWeight: '700', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Icon size={14} color="var(--pri)" /> {period.label}
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--mute)' }}>
+                      {period.range} • {periodShifts.length} {periodShifts.length === 1 ? 'banner' : 'banners'}
+                    </div>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveShift(idx)}
-                    className="df-btn df-btn-bad"
-                    style={{ padding: '0.35rem 0.55rem', minHeight: 'auto' }}
-                    title="Excluir turno"
-                  >
-                    <Trash2 size={14} />
-                  </button>
                 </div>
               </div>
 
-              <div className="df-field" style={{ marginBottom: 0 }}>
-                <input
-                  type="url"
-                  value={shift.mediaUrl}
-                  onChange={(e) => handleUpdateShift(idx, 'mediaUrl', e.target.value)}
-                  placeholder="URL da Imagem deste horário (Ex: https://i.ibb.co/... ou link direto)"
-                  required
-                />
+              <button
+                type="button"
+                onClick={() => setAddingPeriod(addingPeriod === period.id ? null : period.id)}
+                className="df-btn df-btn-sec"
+                style={{ width: '100%', fontSize: '0.8rem', padding: '0.45rem' }}
+              >
+                <Plus size={14} /> Adicionar à {period.label.toLowerCase()}
+              </button>
+
+              {addingPeriod === period.id && (
+                <div style={{ background: '#FFFFFF', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--pri)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--ink)' }}>Escolher da Biblioteca:</span>
+                  {libraryItems.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '140px', overflowY: 'auto' }}>
+                      {libraryItems.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => handleAddMediaToPeriod(period, item)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '4px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--bg)', cursor: 'pointer', textAlign: 'left', fontSize: '0.78rem' }}
+                        >
+                          <img src={item.url} alt="" style={{ width: '36px', height: '22px', objectFit: 'cover', borderRadius: '4px' }} />
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{item.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: '0.74rem', color: 'var(--mute)' }}>Nenhuma imagem na biblioteca ainda.</span>
+                  )}
+
+                  <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+                    <input
+                      type="url"
+                      value={customUrl}
+                      onChange={(e) => setCustomUrl(e.target.value)}
+                      placeholder="Ou cole URL da imagem..."
+                      style={{ flex: 1, fontSize: '0.76rem', padding: '4px 6px', borderRadius: '6px', border: '1px solid var(--line)' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => customUrl.trim() && handleAddMediaToPeriod(period, { name: `Banner ${period.label}`, url: customUrl.trim() })}
+                      className="df-btn df-btn-pri"
+                      style={{ padding: '4px 8px', fontSize: '0.74rem', minHeight: 'auto' }}
+                    >
+                      OK
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Lista de turnos do período */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                {periodShifts.map((shift) => (
+                  <div key={shift.id} style={{ background: '#FFFFFF', borderRadius: '10px', padding: '0.6rem', border: '1px solid var(--line)', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {shift.mediaUrl && (
+                        <img src={shift.mediaUrl} alt="" style={{ width: '48px', height: '30px', objectFit: 'cover', borderRadius: '6px', flexShrink: 0 }} />
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '0.8rem', fontWeight: '700', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {shift.name}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', color: 'var(--mute)', marginTop: '2px' }}>
+                          <input
+                            type="time"
+                            value={shift.start}
+                            onChange={(e) => handleUpdateTime(shift.id, 'start', e.target.value)}
+                            style={{ border: '1px solid var(--line)', borderRadius: '4px', padding: '1px 3px', fontSize: '0.72rem' }}
+                          />
+                          <span>às</span>
+                          <input
+                            type="time"
+                            value={shift.end}
+                            onChange={(e) => handleUpdateTime(shift.id, 'end', e.target.value)}
+                            style={{ border: '1px solid var(--line)', borderRadius: '4px', padding: '1px 3px', fontSize: '0.72rem' }}
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveShift(shift.id)}
+                        style={{ background: 'none', border: 'none', color: 'var(--bad)', cursor: 'pointer', padding: '4px' }}
+                        title="Retirar"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <button type="button" onClick={handleAddShift} className="df-btn df-btn-sec">
-            <Plus size={16} /> Adicionar Mais um Turno
-          </button>
-
-          <button type="submit" className="df-btn df-btn-pri" style={{ minWidth: '180px' }}>
-            Salvar Programação de Telas
-          </button>
-        </div>
-      </form>
+          );
+        })}
+      </div>
     </div>
   );
 }

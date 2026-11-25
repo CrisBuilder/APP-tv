@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { ref, onValue } from 'firebase/database';
 import { db } from '../firebase';
 import { QRCodeSVG } from 'qrcode.react';
 import { playChimeSound } from '../services/audioService';
+import { sendDisplayHeartbeat } from '../services/displayService';
 
 export default function TV() {
   const { uid, displayId } = useParams();
@@ -30,6 +31,8 @@ export default function TV() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [videoIndex, setVideoIndex] = useState(0);
+  const [displaySettings, setDisplaySettings] = useState({ objectFit: 'cover', showClock: true, clockPosition: 'top-right' });
+  const videoRef = useRef(null);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -70,6 +73,28 @@ export default function TV() {
 
     return () => unsubscribe();
   }, [uid, displayId, cacheKey]);
+
+  // Heartbeat periódico & Ajustes da TV (Imagem e Relógio)
+  useEffect(() => {
+    if (!uid || !displayId) return;
+
+    sendDisplayHeartbeat(uid, displayId).catch(() => {});
+    const hbInterval = setInterval(() => {
+      sendDisplayHeartbeat(uid, displayId).catch(() => {});
+    }, 25000);
+
+    const settingsRef = ref(db, `users/${uid}/displays/${displayId}/settings`);
+    const unsubSettings = onValue(settingsRef, (snap) => {
+      if (snap.exists()) {
+        setDisplaySettings((prev) => ({ ...prev, ...snap.val() }));
+      }
+    });
+
+    return () => {
+      clearInterval(hbInterval);
+      unsubSettings();
+    };
+  }, [uid, displayId]);
 
   useEffect(() => {
     if (state.ticket?.timestamp && state.ticket?.visible) {
@@ -118,12 +143,30 @@ export default function TV() {
     }
   };
 
+  // Resetar índices ao receber uma nova transmissão
+  useEffect(() => {
+    setCarouselIndex(0);
+    setVideoIndex(0);
+  }, [activeBackground?.timestamp, activeBackground?.type]);
+
+  // Garantir reprodução automática em navegadores de Smart TV
+  useEffect(() => {
+    if ((activeBackground?.type === 'video' || activeBackground?.type === 'video_playlist') && videoRef.current) {
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          // Fallback silencioso caso o navegador exija interação; muted já está ativo
+        });
+      }
+    }
+  }, [activeBackground, videoIndex]);
+
   // URL para Playlist do YouTube
   const youtubePlaylistUrl = useMemo(() => {
     if (activeBackground?.type === 'youtube_playlist' && Array.isArray(activeBackground.videoIds) && activeBackground.videoIds.length > 0) {
       const firstId = activeBackground.videoIds[0];
       const playlistParam = activeBackground.videoIds.join(',');
-      return `https://www.youtube.com/embed/${firstId}?autoplay=1&controls=0&mute=1&loop=1&playlist=${playlistParam}`;
+      return `https://www.youtube.com/embed/${firstId}?autoplay=1&controls=0&mute=1&playsinline=1&rel=0&loop=1&playlist=${playlistParam}`;
     }
     return null;
   }, [activeBackground]);
@@ -135,7 +178,7 @@ export default function TV() {
   return (
     <div className="tv-container">
       {/* Camada de Mídia: Imagem, Carrossel, Vídeo Direto ou YouTube */}
-      <div className="tv-background">
+      <div className="tv-background" style={{ '--tv-object-fit': displaySettings.objectFit || 'cover' }}>
         {activeBackground?.type === 'carousel' && activeBackground.slides?.length > 0 && (
           <img
             key={activeBackground.slides[carouselIndex % activeBackground.slides.length]?.url}
@@ -152,6 +195,8 @@ export default function TV() {
 
         {activeBackground?.type === 'video' && activeBackground.url && (
           <video
+            ref={videoRef}
+            key={activeBackground.url}
             src={activeBackground.url}
             className="tv-media"
             autoPlay
@@ -163,20 +208,24 @@ export default function TV() {
 
         {activeBackground?.type === 'video_playlist' && activeBackground.items?.length > 0 && (
           <video
+            ref={videoRef}
             key={activeBackground.items[videoIndex % activeBackground.items.length]?.url}
             src={activeBackground.items[videoIndex % activeBackground.items.length]?.url}
             className="tv-media"
             autoPlay
             muted
+            loop={activeBackground.items.length === 1}
             playsInline
             onEnded={handleDirectVideoEnded}
+            onError={handleDirectVideoEnded}
           />
         )}
 
         {activeBackground?.type === 'youtube' && (
           <iframe
+            key={activeBackground.videoId}
             className="tv-iframe"
-            src={`https://www.youtube.com/embed/${activeBackground.videoId}?autoplay=1&controls=0&modestbranding=1&loop=1&playlist=${activeBackground.videoId}`}
+            src={`https://www.youtube.com/embed/${activeBackground.videoId}?autoplay=1&controls=0&mute=1&playsinline=1&rel=0&modestbranding=1&loop=1&playlist=${activeBackground.videoId}`}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
             title="DisplayFlow YouTube"
@@ -195,14 +244,19 @@ export default function TV() {
       </div>
 
       {/* Relógio & Indicador Offline */}
-      <div className="tv-clock-widget">
-        {!isOnline && (
-          <span style={{ fontSize: '0.65rem', background: '#E65B64', padding: '2px 8px', borderRadius: '10px', marginRight: '8px', verticalAlign: 'middle' }}>
-            MODO OFFLINE
-          </span>
-        )}
-        {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-      </div>
+      {displaySettings.showClock !== false && (
+        <div
+          className="tv-clock-widget"
+          style={displaySettings.clockPosition === 'top-left' ? { left: '1.5rem', right: 'auto' } : undefined}
+        >
+          {!isOnline && (
+            <span style={{ fontSize: '0.65rem', background: '#E65B64', padding: '2px 8px', borderRadius: '10px', marginRight: '8px', verticalAlign: 'middle' }}>
+              MODO OFFLINE
+            </span>
+          )}
+          {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </div>
+      )}
 
       {/* Overlays Cinematográficos */}
       <div className="tv-overlay-layer">
@@ -249,8 +303,26 @@ export default function TV() {
 
       {/* Letreiro */}
       {state.announcement?.visible && state.announcement.text && (
-        <div className="tv-banner-container">
-          <div className="tv-banner-text">
+        <div className="tv-banner-container" style={{ display: 'flex', alignItems: 'center' }}>
+          {state.announcement.badge && (
+            <span style={{
+              background: '#263DA7', color: '#FFFFFF', fontWeight: '800',
+              fontSize: '0.85rem', padding: '0.35rem 0.9rem', borderRadius: '6px',
+              marginLeft: '1rem', flexShrink: 0, zIndex: 2, letterSpacing: '0.5px'
+            }}>
+              {state.announcement.badge}
+            </span>
+          )}
+          <div
+            className="tv-banner-text"
+            style={{
+              fontSize: state.announcement.size === 'large'
+                ? 'clamp(1.5rem, 3vw, 2.3rem)'
+                : state.announcement.size === 'small'
+                  ? 'clamp(0.95rem, 1.6vw, 1.3rem)'
+                  : undefined
+            }}
+          >
             {state.announcement.text} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; • &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {state.announcement.text}
           </div>
         </div>

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Upload, Plus, Trash2, PlaySquare, Video } from 'lucide-react';
 import { broadcastToDisplays } from '../../services/displayService';
 import { uploadVideoToStorage } from '../../services/videoStorageService';
+import { saveMediaToLibrary } from '../../services/mediaLibraryService';
+import MediaLibraryPanel from './MediaLibraryPanel';
 
 export default function DirectVideoManager({ user, displays, targets, onFeedback }) {
   const [videoList, setVideoList] = useState([]);
@@ -21,13 +23,21 @@ export default function DirectVideoManager({ user, displays, targets, onFeedback
         setUploadProgress(percent);
       });
 
+      await saveMediaToLibrary(user.uid, {
+        name: uploaded.name,
+        url: uploaded.url,
+        storagePath: uploaded.storagePath,
+        size: uploaded.size,
+        type: 'video'
+      });
+
       const newVideo = {
         id: `vid_${Date.now()}`,
         name: uploaded.name,
         url: uploaded.url
       };
       setVideoList((prev) => [...prev, newVideo]);
-      onFeedback(`Vídeo "${uploaded.name}" carregado com sucesso!`);
+      onFeedback(`Vídeo "${uploaded.name}" salvo na biblioteca e carregado na fila!`);
     } catch (err) {
       alert('Erro no envio do vídeo: ' + (err.message || 'Falha no Storage.'));
     } finally {
@@ -37,17 +47,42 @@ export default function DirectVideoManager({ user, displays, targets, onFeedback
     }
   };
 
-  const handleAddDirectUrl = (e) => {
+  const handleAddDirectUrl = async (e) => {
     e.preventDefault();
     if (!directVideoUrl.trim()) return;
 
+    const cleanUrl = directVideoUrl.trim();
+    const videoName = cleanUrl.split('/').pop()?.split('?')[0] || `Vídeo ${videoList.length + 1}`;
+    await saveMediaToLibrary(user.uid, {
+      name: videoName,
+      url: cleanUrl,
+      type: 'video'
+    });
+
     const newVideo = {
       id: `vid_${Date.now()}`,
-      name: `Vídeo ${videoList.length + 1}`,
-      url: directVideoUrl.trim()
+      name: videoName,
+      url: cleanUrl
     };
     setVideoList((prev) => [...prev, newVideo]);
     setDirectVideoUrl('');
+  };
+
+  const handleSelectFromLibrary = (item) => {
+    setVideoList((prev) => [
+      ...prev,
+      { id: `vid_${Date.now()}`, name: item.name, url: item.url }
+    ]);
+  };
+
+  const handleBroadcastSingleFromLibrary = async (item) => {
+    await broadcastToDisplays(user.uid, targets, 'background', {
+      type: 'video',
+      url: item.url,
+      name: item.name,
+      timestamp: Date.now()
+    }, displays);
+    onFeedback(`Vídeo "${item.name}" transmitido em loop contínuo para as TVs!`);
   };
 
   const handlePublish = async () => {
@@ -143,6 +178,14 @@ export default function DirectVideoManager({ user, displays, targets, onFeedback
       >
         <Video size={16} /> Transmitir {videoList.length > 1 ? `Playlist (${videoList.length} vídeos)` : 'Vídeo Único'} na TV
       </button>
+
+      <MediaLibraryPanel
+        user={user}
+        filterType="video"
+        selectLabel="À Fila"
+        onSelectMedia={handleSelectFromLibrary}
+        onBroadcastMedia={handleBroadcastSingleFromLibrary}
+      />
     </div>
   );
 }

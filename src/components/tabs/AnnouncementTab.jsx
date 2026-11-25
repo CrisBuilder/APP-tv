@@ -11,6 +11,8 @@ export default function AnnouncementTab({
 }) {
   const [targets, setTargets] = useState(selectedDisplayId);
   const [text, setText] = useState(initialText);
+  const [size, setSize] = useState('medium');
+  const [badge, setBadge] = useState('INFORMAÇÕES');
   const [statusMsg, setStatusMsg] = useState('');
 
   const handlePublish = async (e) => {
@@ -22,6 +24,8 @@ export default function AnnouncementTab({
 
     await broadcastToDisplays(user.uid, targets, 'announcement', {
       text: text.trim(),
+      size,
+      badge: badge.trim().toUpperCase() || 'INFORMAÇÕES',
       visible: true,
       timestamp: Date.now()
     }, displays);
@@ -65,6 +69,28 @@ export default function AnnouncementTab({
       )}
 
       <form onSubmit={handlePublish}>
+        <div className="df-grid-2" style={{ marginBottom: '0.75rem' }}>
+          <div className="df-field" style={{ marginBottom: 0 }}>
+            <label>Tamanho do Letreiro</label>
+            <select value={size} onChange={(e) => setSize(e.target.value)}>
+              <option value="small">Pequeno (Discreto)</option>
+              <option value="medium">Médio (Padrão)</option>
+              <option value="large">Grande (Destaque Máximo)</option>
+            </select>
+          </div>
+
+          <div className="df-field" style={{ marginBottom: 0 }}>
+            <label>Etiqueta em Destaque</label>
+            <input
+              type="text"
+              value={badge}
+              onChange={(e) => setBadge(e.target.value)}
+              placeholder="Ex: INFORMAÇÕES, PROMOÇÃO, URGENTE"
+              maxLength={24}
+            />
+          </div>
+        </div>
+
         <div className="df-field">
           <label>Texto do Letreiro Noticiário</label>
           <textarea

@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { Plus, Trash2, ListVideo, Video } from 'lucide-react';
 import { broadcastToDisplays } from '../../services/displayService';
 import { extractYoutubeId } from '../../services/videoStorageService';
+import { saveMediaToLibrary } from '../../services/mediaLibraryService';
+import MediaLibraryPanel from './MediaLibraryPanel';
 
 export default function YoutubePlaylistManager({ user, displays, targets, onFeedback }) {
   const [youtubeList, setYoutubeList] = useState([]);
   const [youtubeInput, setYoutubeInput] = useState('');
 
-  const handleAddYoutubeLink = (e) => {
+  const handleAddYoutubeLink = async (e) => {
     e.preventDefault();
     const videoId = extractYoutubeId(youtubeInput);
     if (!videoId) {
@@ -15,13 +17,39 @@ export default function YoutubePlaylistManager({ user, displays, targets, onFeed
       return;
     }
 
+    const cleanLink = youtubeInput.trim();
+    await saveMediaToLibrary(user.uid, {
+      name: `YouTube (${videoId})`,
+      url: cleanLink,
+      videoId,
+      type: 'youtube'
+    });
+
     const newItem = {
       id: `yt_${Date.now()}`,
       videoId,
-      originalLink: youtubeInput.trim()
+      originalLink: cleanLink
     };
     setYoutubeList((prev) => [...prev, newItem]);
     setYoutubeInput('');
+  };
+
+  const handleSelectFromLibrary = (item) => {
+    if (!item.videoId) return;
+    setYoutubeList((prev) => [
+      ...prev,
+      { id: `yt_${Date.now()}`, videoId: item.videoId, originalLink: item.url }
+    ]);
+  };
+
+  const handleBroadcastSingleFromLibrary = async (item) => {
+    if (!item.videoId) return;
+    await broadcastToDisplays(user.uid, targets, 'background', {
+      type: 'youtube',
+      videoId: item.videoId,
+      timestamp: Date.now()
+    }, displays);
+    onFeedback(`Vídeo do YouTube (${item.videoId}) transmitido para as TVs!`);
   };
 
   const handlePublish = async () => {
@@ -92,6 +120,14 @@ export default function YoutubePlaylistManager({ user, displays, targets, onFeed
       >
         <ListVideo size={16} /> Transmitir {youtubeList.length > 1 ? `Playlist do YouTube (${youtubeList.length} vídeos)` : 'Vídeo do YouTube'} na TV
       </button>
+
+      <MediaLibraryPanel
+        user={user}
+        filterType="youtube"
+        selectLabel="À Fila"
+        onSelectMedia={handleSelectFromLibrary}
+        onBroadcastMedia={handleBroadcastSingleFromLibrary}
+      />
     </div>
   );
 }

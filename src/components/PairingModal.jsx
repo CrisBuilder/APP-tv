@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { claimPairingCode, saveDisplay } from '../services/displayService';
 import { Tv, KeyRound, Plus, X, Smartphone } from 'lucide-react';
 
-export default function PairingModal({ isOpen, onClose, user, onDisplayCreated }) {
+export default function PairingModal({ isOpen, onClose, user, displays = [], initialCode = '', onDisplayCreated }) {
   const [tab, setTab] = useState('code'); // 'code' | 'manual'
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(initialCode);
+  const [existingDisplayId, setExistingDisplayId] = useState('');
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,7 +23,7 @@ export default function PairingModal({ isOpen, onClose, user, onDisplayCreated }
     setLoading(true);
     setErrorMsg('');
     try {
-      const display = await claimPairingCode(user.uid, code, name, location);
+      const display = await claimPairingCode(user.uid, code, name, location, existingDisplayId);
       alert(`Tela "${display.name}" emparelhada com sucesso!`);
       onDisplayCreated?.(display);
       onClose();
@@ -127,24 +128,38 @@ export default function PairingModal({ isOpen, onClose, user, onDisplayCreated }
             </div>
 
             <div className="df-field">
-              <label>Identificação da TV (Opcional)</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Ex: TV Recepção, Vitrine..."
-              />
+              <label>Qual TV você quer conectar?</label>
+              <select value={existingDisplayId} onChange={(e) => setExistingDisplayId(e.target.value)}>
+                <option value="">Adicionar uma TV nova</option>
+                {displays.map((d) => (
+                  <option key={d.id} value={d.id}>Reconectar: {d.name} ({d.location || 'Geral'})</option>
+                ))}
+              </select>
             </div>
 
-            <div className="df-field">
-              <label>Localização / Cidade (Opcional)</label>
-              <input
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="Ex: Loja Central, Maputo"
-              />
-            </div>
+            {!existingDisplayId && (
+              <>
+                <div className="df-field">
+                  <label>Como você quer chamar esta TV?</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Ex: TV Recepção, Vitrine..."
+                  />
+                </div>
+
+                <div className="df-field">
+                  <label>Localização / Cidade (Opcional)</label>
+                  <input
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="Ex: Loja Central, Maputo"
+                  />
+                </div>
+              </>
+            )}
 
             <button type="submit" className="df-btn df-btn-pri" disabled={loading} style={{ width: '100%', marginTop: '0.5rem' }}>
               {loading ? 'Emparelhando...' : 'Confirmar & Conectar TV'}

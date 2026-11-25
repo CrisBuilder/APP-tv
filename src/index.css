@@ -368,7 +368,7 @@ body {
 
 .tv-media {
   width: 100%; height: 100%;
-  object-fit: cover;
+  object-fit: var(--tv-object-fit, cover);
 }
 
 .tv-iframe {

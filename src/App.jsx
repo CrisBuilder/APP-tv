@@ -6,6 +6,7 @@ import Admin from './pages/Admin';
 import TV from './pages/TV';
 import Login from './pages/Login';
 import PairingView from './pages/PairingView';
+import Landing from './pages/Landing';
 import { MonitorPlay } from 'lucide-react';
 
 function App() {
@@ -110,7 +111,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to={user ? "/admin" : "/login"} replace />} />
+        <Route path="/" element={<Landing user={user} />} />
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/admin" replace />} />
         <Route path="/admin" element={user ? <Admin user={user} /> : <Navigate to="/login" replace />} />
         

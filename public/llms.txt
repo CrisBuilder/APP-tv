@@ -1,0 +1,22 @@
+# DisplayFlow — Sinalização Digital Inteligente
+
+> DisplayFlow é uma plataforma web de sinalização digital (Digital Signage / TV Corporativa) projetada para comércios, restaurantes, talhos, clínicas, padarias, barbearias e lojas em Moçambique. Permite transformar qualquer Smart TV em um painel de vendas, cardápio, letreiro dinâmico e chamador de senhas controlado remotamente pelo celular.
+
+## Resumo Executivo
+- **URL Principal:** https://displayflow-6b14f.web.app/
+- **Pareamento de TVs:** https://displayflow-6b14f.web.app/pair (QR Code ou código de 6 dígitos)
+- **Moeda & Pagamento:** Metical (MTN) com integração M-Pesa (Vodacom Moçambique 84/85)
+- **Requisitos de Hardware:** Nenhum equipamento proprietário; funciona em qualquer navegador de Smart TV, Android TV ou computador.
+
+## Funcionalidades Principais
+1. **Gestão Multi-TV pelo Celular:** Controle uma ou dezenas de telas separadamente ou em grupo em tempo real.
+2. **Mídia Variada & Biblioteca Persistente:** Upload de imagens, carrosséis rotativos, vídeos MP4 e playlists automáticas do YouTube.
+3. **Programação por Turnos:** Troca automática de campanhas por horário (Manhã, Tarde e Noite).
+4. **Letreiro Dinâmico & Ofertas em MTN:** Faixa de avisos com etiqueta de destaque e cards de preço com QR Code.
+5. **Atendimento & Senhas (A / P):** Emissão de senhas comuns e prioritárias com som de gongo sintetizado 100% offline.
+6. **Resiliência Offline:** Service Worker e cache local mantêm as campanhas no ar mesmo durante quedas de internet.
+
+## Planos (MTN)
+- **Starter:** 0 MTN/mês (1 TV conectada, ideal para testar).
+- **Pro:** 490 MTN/mês (até 5 TVs, turnos automáticos, vídeos e senhas).
+- **Rede / Corporativo:** 1.490 MTN/mês (TVs ilimitadas e multi-unidades).

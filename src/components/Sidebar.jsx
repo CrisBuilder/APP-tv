@@ -28,20 +28,13 @@ export default function Sidebar({ activeTab, setActiveTab, user, profile, displa
   return (
     <aside className="df-sidebar">
       {/* Brand Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div className="df-brand">
-          <div style={{
-            background: 'var(--tint)',
-            color: 'var(--pri)',
-            padding: '8px',
-            borderRadius: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <MonitorPlay size={22} />
-          </div>
-          <span>DisplayFlow</span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+        <div className="df-brand" style={{ minWidth: 0 }}>
+          <img
+            src="/logo-displayflow.png"
+            alt="DisplayFlow"
+            style={{ height: '34px', width: 'auto', maxWidth: '175px', objectFit: 'contain' }}
+          />
         </div>
         <span className="df-brand-badge">Pro</span>
       </div>

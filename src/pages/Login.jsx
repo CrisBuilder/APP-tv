@@ -59,25 +59,11 @@ export default function Login() {
       }}>
         {/* Header da Marca DisplayFlow */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '56px',
-            height: '56px',
-            borderRadius: '16px',
-            background: 'var(--tint)',
-            color: 'var(--pri)',
-            marginBottom: '0.75rem'
-          }}>
-            <MonitorPlay size={32} />
-          </div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: '800', color: 'var(--ink)' }}>
-            Display<span style={{ color: 'var(--pri)' }}>Flow</span>
-          </h1>
-          <p style={{ fontSize: '0.9rem', color: 'var(--mute)', marginTop: '0.25rem' }}>
-            Gestão Estratégica de Telas & Digital Signage
-          </p>
+          <img
+            src="/logo-displayflow.png"
+            alt="DisplayFlow — Gestão Estratégica de Telas & Digital Signage"
+            style={{ width: '100%', maxWidth: '280px', height: 'auto', margin: '0 auto 0.5rem auto', display: 'block' }}
+          />
         </div>
 
         {errorMsg && (

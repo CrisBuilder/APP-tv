@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import { MonitorPlay } from 'lucide-react';
 import LandingHero from '../components/landing/LandingHero';
 import LandingFeatures from '../components/landing/LandingFeatures';
 import LandingPricingFaq from '../components/landing/LandingPricingFaq';
@@ -8,13 +7,14 @@ export default function Landing({ user }) {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)', display: 'flex', flexDirection: 'column' }}>
       {/* Navbar Pública */}
-      <header style={{ background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(10px)', borderBottom: '1px solid var(--line)', position: 'sticky', top: 0, zIndex: 50 }}>
-        <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '0.85rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-          <Link to="/" className="df-brand" style={{ textDecoration: 'none' }}>
-            <div style={{ background: 'var(--tint)', color: 'var(--pri)', padding: '7px', borderRadius: '10px', display: 'flex' }}>
-              <MonitorPlay size={20} />
-            </div>
-            <span>DisplayFlow</span>
+      <header style={{ background: 'rgba(255, 255, 255, 0.94)', backdropFilter: 'blur(10px)', borderBottom: '1px solid var(--line)', position: 'sticky', top: 0, zIndex: 50 }}>
+        <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '0.75rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+          <Link to="/" className="df-brand" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+            <img
+              src="/logo-displayflow.png"
+              alt="DisplayFlow — Gestão Estratégica de Telas & Digital Signage"
+              style={{ height: '38px', width: 'auto', objectFit: 'contain' }}
+            />
           </Link>
 
           <nav style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', fontSize: '0.88rem', fontWeight: '600' }}>

@@ -56,16 +56,12 @@ export default function PairingView() {
       userSelect: 'none'
     }}>
       {/* Brand Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
-        <div style={{
-          background: 'rgba(127, 147, 240, 0.2)',
-          color: '#7F93F0',
-          padding: '12px',
-          borderRadius: '16px',
-          border: '1px solid rgba(127, 147, 240, 0.4)'
-        }}>
-          <MonitorPlay size={36} />
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '2rem' }}>
+        <img
+          src="/favicon.png"
+          alt="DisplayFlow"
+          style={{ width: '56px', height: '56px', borderRadius: '50%', boxShadow: '0 8px 24px rgba(0,0,0,0.4)' }}
+        />
         <h1 style={{ fontSize: '2.4rem', fontWeight: '800', letterSpacing: '-0.5px' }}>
           Display<span style={{ color: '#7F93F0' }}>Flow</span>
         </h1>
